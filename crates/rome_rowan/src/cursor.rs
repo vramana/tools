@@ -884,6 +884,7 @@ impl SyntaxNode {
             )
         })
     }
+
     pub fn last_child_or_token(&self) -> Option<SyntaxElement> {
         self.green_ref().children().next_back().map(|child| {
             SyntaxElement::new(

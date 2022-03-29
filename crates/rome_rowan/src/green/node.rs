@@ -142,7 +142,7 @@ impl GreenNodeData {
     }
 
     #[inline]
-    fn slice(&self) -> &[Slot] {
+    pub fn slice(&self) -> &[Slot] {
         self.data.slice()
     }
 

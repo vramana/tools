@@ -1,7 +1,7 @@
 //! Utilities for high level parsing of js code.
 
-use crate::token_source::Trivia;
 use crate::*;
+use crate::{lossless_tree_sink::LosslessTreeSink2, token_source::Trivia};
 use rome_diagnostics::Severity;
 use rome_js_syntax::{AstNode, JsAnyRoot, JsExpressionSnipped, JsModule, JsScript, SyntaxNode};
 use std::marker::PhantomData;
@@ -175,6 +175,14 @@ pub fn parse(text: &str, file_id: usize, source_type: SourceType) -> Parse<JsAny
     crate::process(&mut tree_sink, events, errors);
     let (green, parse_errors) = tree_sink.finish();
     Parse::new(green, parse_errors)
+}
+
+#[tracing::instrument(level = "debug", skip_all, fields(file_id = file_id))]
+pub fn parse2(text: &'_ str, file_id: usize, source_type: SourceType) -> LosslessTreeSink2<'_> {
+    let (events, errors, trivia) = parse_common(text, file_id, source_type);
+    let mut tree_sink = LosslessTreeSink2::new(text, trivia, events.len());
+    crate::process(&mut tree_sink, events, errors);
+    tree_sink
 }
 
 /// Losslessly Parse text into an expression [`Parse`](Parse) which can then be turned into an untyped root [`SyntaxNode`](SyntaxNode).

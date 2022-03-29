@@ -63,7 +63,7 @@ mod parser;
 mod token_set;
 mod event;
 mod lexer;
-mod lossless_tree_sink;
+pub mod lossless_tree_sink;
 mod parse;
 mod state;
 

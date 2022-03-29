@@ -1364,6 +1364,7 @@ dependencies = [
  "rome_formatter",
  "rome_fs",
  "rome_js_parser",
+ "rome_js_syntax",
  "thiserror",
  "tracing",
  "tracing-subscriber",
