@@ -3,8 +3,9 @@ use rustc_hash::FxHasher;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use text_size::TextSize;
 
-use crate::api::{TriviaPiece, TriviaPieceKind};
+use crate::api::TriviaPieceKind;
 use crate::green::Slot;
+use crate::TriviaPiece;
 use crate::{
     green::GreenElementRef, GreenNode, GreenNodeData, GreenToken, GreenTokenData, NodeOrToken,
     RawSyntaxKind,
@@ -136,15 +137,21 @@ impl NodeCache {
         });
 
         match entry {
-            RawEntryMut::Occupied(entry) => NodeCacheNodeEntryMut::Cached(CachedNodeEntry {
-                hash,
-                raw_entry: entry,
-            }),
-            RawEntryMut::Vacant(entry) => NodeCacheNodeEntryMut::Vacant(VacantNodeEntry {
-                raw_entry: entry,
-                original_kind: kind,
-                hash,
-            }),
+            RawEntryMut::Occupied(entry) => {
+                println!("Node Hit");
+                NodeCacheNodeEntryMut::Cached(CachedNodeEntry {
+                    hash,
+                    raw_entry: entry,
+                })
+            }
+            RawEntryMut::Vacant(entry) => {
+                println!("Node Miss");
+                NodeCacheNodeEntryMut::Vacant(VacantNodeEntry {
+                    raw_entry: entry,
+                    original_kind: kind,
+                    hash,
+                })
+            }
         }
     }
 
@@ -166,8 +173,12 @@ impl NodeCache {
         });
 
         let token = match entry {
-            RawEntryMut::Occupied(entry) => entry.key().0.clone(),
+            RawEntryMut::Occupied(entry) => {
+                println!("Token Hit");
+                entry.key().0.clone()
+            }
             RawEntryMut::Vacant(entry) => {
+                println!("Token Miss");
                 let leading = self.trivia.get(leading);
                 let trailing = self.trivia.get(trailing);
 
@@ -289,8 +300,12 @@ impl TriviaCache {
                     .from_hash(hash, |trivia| trivia.0.pieces() == pieces);
 
                 match entry {
-                    RawEntryMut::Occupied(entry) => entry.key().0.clone(),
+                    RawEntryMut::Occupied(entry) => {
+                        println!("Trivia Hit");
+                        entry.key().0.clone()
+                    }
                     RawEntryMut::Vacant(entry) => {
+                        println!("Trivia Miss");
                         let trivia = GreenTrivia::new(pieces.iter().copied());
                         entry.insert_with_hasher(
                             hash,

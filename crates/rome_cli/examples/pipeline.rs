@@ -222,36 +222,36 @@ fn main() {
     let input = std::env::args().nth(1).unwrap();
     let text = std::fs::read_to_string(input).unwrap();
 
-    println!("Today");
-    println!("-----");
+    // println!("Today");
+    // println!("-----");
 
     let a = Instant::now();
     let result = rome_js_parser::parse(&text, 0, SourceType::js_script());
     let took = Instant::now() - a;
-    println!("parse: {:?}", took);
+    // println!("parse: {:?}", took);
 
-    syntax_pipeline_1(&result);
-    syntax_pipeline_10(&result);
-    syntax_pipeline_100(&result);
-    syntax_pipeline_100_cached(&result);
+    // syntax_pipeline_1(&result);
+    // syntax_pipeline_10(&result);
+    // syntax_pipeline_100(&result);
+    // syntax_pipeline_100_cached(&result);
 
-    println!("Home Made Flat Tree");
-    println!("-----");
+    // println!("Home Made Flat Tree");
+    // println!("-----");
 
-    let a = Instant::now();
-    let result = rome_js_parser::parse2(&text, 0, SourceType::js_script());
-    let took = Instant::now() - a;
-    println!("parse: {:?}", took);
+    // let a = Instant::now();
+    // let result = rome_js_parser::parse2(&text, 0, SourceType::js_script());
+    // let took = Instant::now() - a;
+    // println!("parse: {:?}", took);
 
-    syntax2_pipeline_1(&result);
-    syntax2_pipeline_10(&result);
-    syntax2_pipeline_100(&result);
-    syntax2_pipeline_100_cached(&result);
+    // syntax2_pipeline_1(&result);
+    // syntax2_pipeline_10(&result);
+    // syntax2_pipeline_100(&result);
+    // syntax2_pipeline_100_cached(&result);
 
-    println!("SIMD");
-    println!("-----");
+    // println!("SIMD");
+    // println!("-----");
 
-    syntax2_simd_pipeline_1(&result);
-    syntax2_simd_pipeline_10(&result);
-    syntax2_simd_pipeline_100(&result);
+    // syntax2_simd_pipeline_1(&result);
+    // syntax2_simd_pipeline_10(&result);
+    // syntax2_simd_pipeline_100(&result);
 }
