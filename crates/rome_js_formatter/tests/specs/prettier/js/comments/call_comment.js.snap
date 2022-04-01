@@ -1,6 +1,6 @@
 ---
 source: crates/rome_js_formatter/tests/prettier_tests.rs
-assertion_line: 149
+assertion_line: 153
 expression: call_comment.js
 
 ---
@@ -27,19 +27,22 @@ render?.( // Warm any cache
 ```js
 render(
   // Warm any cache
-  <ChildUpdates renderAnchor={true} anchorClassOn={true} />,
+  <ChildUpdates renderAnchor={true}
+  anchorClassOn={true} />,
   container,
 );
 
 React.render(
   // Warm any cache
-  <ChildUpdates renderAnchor={true} anchorClassOn={true} />,
+  <ChildUpdates renderAnchor={true}
+  anchorClassOn={true} />,
   container,
 );
 
 render?.(
   // Warm any cache
-  <ChildUpdates renderAnchor={true} anchorClassOn={true} />,
+  <ChildUpdates renderAnchor={true}
+  anchorClassOn={true} />,
   container,
 );
 

@@ -1,11 +1,11 @@
 ---
 source: crates/rome_js_formatter/tests/spec_test.rs
-assertion_line: 197
+assertion_line: 198
 expression: smoke.jsx
 
 ---
 # Input
-"foo";
+<A />
 =============================
 # Outputs
 ## Output 1
@@ -13,5 +13,5 @@ expression: smoke.jsx
 Indent style: Tab
 Line width: 80
 -----
-"foo";
+<A />;
 

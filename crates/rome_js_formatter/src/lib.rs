@@ -595,11 +595,12 @@ mod test {
     // use this test check if your snippet prints as you wish, without using a snapshot
     fn quick_test() {
         let src = r#"
- const functionName1 = <T,>(arg) => false;
+<>foo</>
 "#;
         let syntax = SourceType::tsx();
         let tree = parse(src, 0, syntax.clone());
         let result = format(FormatOptions::default(), &tree.syntax()).unwrap();
+        dbg!(tree.syntax());
         check_reformat(CheckReformatParams {
             root: &tree.syntax(),
             text: result.as_code(),
