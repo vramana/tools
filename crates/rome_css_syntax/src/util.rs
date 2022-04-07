@@ -30,27 +30,6 @@ pub trait SyntaxNodeExt {
     fn try_to<T: AstNode>(&self) -> Option<T> {
         T::cast(self.to_node().to_owned())
     }
-
-    /// Whether the node contains any comments.
-    fn contains_comments(&self) -> bool {
-        self.to_node()
-            .descendants_tokens()
-            .any(|tok| tok.has_trailing_comments() || tok.has_leading_comments())
-    }
-
-    /// Whether the node contains trailing comments.
-    fn has_trailing_comments(&self) -> bool {
-        self.to_node()
-            .last_token()
-            .map_or(false, |tok| tok.has_trailing_comments())
-    }
-
-    /// Whether the node contains leading comments.
-    fn has_leading_comments(&self) -> bool {
-        self.to_node()
-            .first_token()
-            .map_or(false, |tok| tok.has_leading_comments())
-    }
 }
 
 impl SyntaxNodeExt for SyntaxNode {

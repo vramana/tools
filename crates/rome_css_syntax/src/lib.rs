@@ -32,17 +32,15 @@ impl CssSyntaxKind {
     pub fn is_trivia(self) -> bool {
         matches!(
             self,
-            CssSyntaxKind::NEWLINE
-                | CssSyntaxKind::WHITESPACE
-                | CssSyntaxKind::COMMENT
-                | CssSyntaxKind::MULTILINE_COMMENT
+            CssSyntaxKind::NEWLINE | CssSyntaxKind::WHITESPACE | CssSyntaxKind::COMMENT
         )
     }
 
     /// Returns `true` for any contextual (await) or non-contextual keyword
     #[inline]
     pub const fn is_keyword(self) -> bool {
-        true
+        (self as u16) <= (CssSyntaxKind::CSS_SELECTOR as u16)
+            && (self as u16) >= (CssSyntaxKind::ALICEBLUE_KW as u16)
     }
 
     /// Returns `true` for contextual keywords (excluding strict mode contextual keywords)
@@ -64,7 +62,9 @@ impl rome_rowan::SyntaxKind for CssSyntaxKind {
     }
 
     fn to_unknown(&self) -> Self {
-        todo!()
+        match self {
+            _ => CSS_UNKNOWN,
+        }
     }
 
     #[inline]
@@ -87,7 +87,6 @@ impl TryFrom<CssSyntaxKind> for TriviaPieceKind {
                 CssSyntaxKind::NEWLINE => Ok(TriviaPieceKind::Newline),
                 CssSyntaxKind::WHITESPACE => Ok(TriviaPieceKind::Whitespace),
                 CssSyntaxKind::COMMENT => Ok(TriviaPieceKind::SingleLineComment),
-                CssSyntaxKind::MULTILINE_COMMENT => Ok(TriviaPieceKind::MultiLineComment),
                 _ => unreachable!("Not Trivia"),
             }
         } else {
