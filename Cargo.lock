@@ -1542,9 +1542,11 @@ dependencies = [
 name = "rome_css_parser"
 version = "0.0.0"
 dependencies = [
+ "cc",
  "cssparser",
  "rome_css_syntax",
  "rome_rowan",
+ "tree-sitter",
 ]
 
 [[package]]
@@ -2161,6 +2163,16 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "tree-sitter"
+version = "0.20.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09b3b781640108d29892e8b9684642d2cda5ea05951fd58f0fea1db9edeb9b71"
+dependencies = [
+ "cc",
+ "regex",
 ]
 
 [[package]]

@@ -5,7 +5,6 @@ use crate::{
     empty_element, format_elements, FormatElement, FormatResult, Formatter, ToFormatElement,
 };
 use rome_js_syntax::{AstNode, SyntaxResult, SyntaxToken};
-
 /// Utility trait used to simplify the formatting of optional tokens
 ///
 /// In order to take advantage of all the functions, you only need to implement the [FormatOptionalTokenAndNode::format_with_or]

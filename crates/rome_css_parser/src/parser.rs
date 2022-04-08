@@ -6,7 +6,5 @@ pub(crate) struct CssParser<'i, 't> {
 }
 
 impl<'i, 't> CssParser<'i, 't> {
-    pub fn parse(lexer: Lexer<'i, 't>) {
-        
-    }
+    pub fn parse(lexer: Lexer<'i, 't>) {}
 }

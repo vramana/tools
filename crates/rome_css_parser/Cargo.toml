@@ -9,3 +9,7 @@ edition = "2021"
 cssparser = "0.29.2"
 rome_rowan = { path = "../rome_rowan" }
 rome_css_syntax = { path = "../rome_css_syntax" }
+tree-sitter = "0.20.6"
+
+[build-dependencies]
+cc="*"
