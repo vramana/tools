@@ -2,16 +2,17 @@
 
 use crate::lexer::Lexer;
 use crate::parser::CssParser;
-use cssparser::{Parser as Tokenizer, ParserInput};
+use cssparser::{Parser as Tokenizer, ParserInput, Token};
 use tree_sitter::Tree;
 
 pub(crate) mod lexer;
 pub(crate) mod parser;
 
-pub fn parse(input: &str) {
+pub fn parse(input: &str) -> Vec<Token> {
     let mut parser_input = ParserInput::new(input);
     let lexer = Tokenizer::new(&mut parser_input);
-    let result = CssParser::parse(Lexer::new(input, lexer));
+    let result = CssParser::parse_raw(&mut Lexer::new(input, lexer));
+    result
 }
 
 pub fn parse_tree_sitter(source: &str) -> Tree {
@@ -31,13 +32,13 @@ pub fn parse_tree_sitter(source: &str) -> Tree {
 
 #[cfg(test)]
 mod test {
-    use crate::parse_tree_sitter;
+    use crate::{parse, parse_tree_sitter};
 
     #[test]
-    fn test() {
+    fn test_tree_sitter() {
         let source = dbg!(
             r#"
-                .style { margin: 0 }"#
+                .{"#
         );
 
         let tree = parse_tree_sitter(source);
@@ -50,15 +51,29 @@ mod test {
         dbg!(tree_walk.node());
         dbg!(tree_walk.goto_first_child());
         dbg!(tree_walk.node());
+        let node = tree_walk.node();
+        let kind = node.kind();
         dbg!(tree_walk.goto_first_child());
         dbg!(tree_walk.node());
         dbg!(tree_walk.goto_first_child());
         dbg!(tree_walk.node());
         dbg!(tree_walk.goto_first_child());
         dbg!(tree_walk.node());
-        dbg!(tree_walk.goto_first_child());
+        dbg!(tree_walk.goto_next_sibling());
         let node = dbg!(tree_walk.node());
         dbg!(node.kind(), node.kind_id());
         assert_eq!(root_node.kind(), "stylesheet");
+    }
+
+    #[test]
+    fn test_cssparser() {
+        let source = r#"@key {}"#;
+        parse(source);
+    }
+
+    #[test]
+    fn test_cssparser_raw() {
+        let source = r#"@key {}"#;
+        parse(source);
     }
 }

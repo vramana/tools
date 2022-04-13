@@ -1,4 +1,4 @@
-use cssparser::{BasicParseError, CowRcStr, ParseError, Parser, Token};
+use cssparser::{CowRcStr, ParseError, Parser, Token};
 use rome_css_syntax::CssSyntaxKind;
 use rome_css_syntax::CssSyntaxKind::*;
 use rome_css_syntax::*;
@@ -18,7 +18,7 @@ pub(crate) struct Lexer<'i, 't> {
     /// The kind of the current token
     current_kind: CssSyntaxKind,
 
-    current_token: Option<Token<'t>>,
+    current_token: Option<Token<'i>>,
 }
 
 impl<'i, 't> Lexer<'i, 't> {
@@ -48,6 +48,10 @@ impl<'i, 't> Lexer<'i, 't> {
         self.parser.position().byte_index() as u32
     }
 
+    pub fn next_raw_token(&mut self) -> Option<Token<'i>> {
+        self.lex_raw_token()
+    }
+
     pub fn next_token(&mut self) -> CssSyntaxKind {
         self.current_start = TextSize::from(self.position());
 
@@ -71,12 +75,19 @@ impl<'i, 't> Lexer<'i, 't> {
         self.map_token_to_kind()
     }
 
+    fn lex_raw_token(&mut self) -> Option<Token<'i>> {
+        self.get_token();
+        self.current_token.clone()
+    }
+
     fn get_token(&mut self) {
-        let token = self
-            .parser
-            .next_including_whitespace_and_comments()
-            .unwrap();
-        self.current_token = Some(token.clone());
+        let token = self.parser.next_including_whitespace_and_comments();
+        match token {
+            Ok(token) => {
+                self.current_token = Some(token.clone());
+            }
+            Err(_) => self.current_token = None,
+        }
     }
 
     fn map_token_to_kind(&mut self) -> Option<CssSyntaxKind> {
@@ -120,14 +131,14 @@ impl<'i, 't> Lexer<'i, 't> {
                 Token::CDO => todo!(),
                 Token::CDC => todo!(),
                 Token::Function(_) => todo!(),
-                Token::ParenthesisBlock => todo!(),
-                Token::SquareBracketBlock => todo!(),
-                Token::CurlyBracketBlock => todo!(),
+                Token::ParenthesisBlock => L_PAREN,
+                Token::SquareBracketBlock => L_BRACK,
+                Token::CurlyBracketBlock => L_CURLY,
                 Token::BadUrl(_) => todo!(),
                 Token::BadString(_) => todo!(),
-                Token::CloseParenthesis => todo!(),
-                Token::CloseSquareBracket => todo!(),
-                Token::CloseCurlyBracket => todo!(),
+                Token::CloseParenthesis => R_PAREN,
+                Token::CloseSquareBracket => R_BRACK,
+                Token::CloseCurlyBracket => R_CURLY,
             };
 
             Some(kind)
@@ -137,7 +148,7 @@ impl<'i, 't> Lexer<'i, 't> {
     }
 
     fn resolve_delimiter(&self, delim: &char) -> CssSyntaxKind {
-        match delim {
+        match dbg!(delim) {
             '.' => DOT,
             ',' => COMMA,
             ';' => SEMICOLON,

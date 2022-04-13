@@ -11,5 +11,17 @@ rome_rowan = { path = "../rome_rowan" }
 rome_css_syntax = { path = "../rome_css_syntax" }
 tree-sitter = "0.20.6"
 
+[dev-dependencies]
+criterion = "0.3.5"
+
+
 [build-dependencies]
 cc="*"
+
+[[bench]]
+name = "tree_sitter"
+harness = false
+
+[[bench]]
+name = "cssparser"
+harness = false

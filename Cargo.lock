@@ -1543,6 +1543,7 @@ name = "rome_css_parser"
 version = "0.0.0"
 dependencies = [
  "cc",
+ "criterion",
  "cssparser",
  "rome_css_syntax",
  "rome_rowan",
