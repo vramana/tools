@@ -138,14 +138,14 @@ impl NodeCache {
 
         match entry {
             RawEntryMut::Occupied(entry) => {
-                println!("Node Hit");
+                // println!("Node Hit");
                 NodeCacheNodeEntryMut::Cached(CachedNodeEntry {
                     hash,
                     raw_entry: entry,
                 })
             }
             RawEntryMut::Vacant(entry) => {
-                println!("Node Miss");
+                // println!("Node Miss");
                 NodeCacheNodeEntryMut::Vacant(VacantNodeEntry {
                     raw_entry: entry,
                     original_kind: kind,
@@ -174,11 +174,11 @@ impl NodeCache {
 
         let token = match entry {
             RawEntryMut::Occupied(entry) => {
-                println!("Token Hit");
+                // println!("Token Hit");
                 entry.key().0.clone()
             }
             RawEntryMut::Vacant(entry) => {
-                println!("Token Miss");
+                // println!("Token Miss");
                 let leading = self.trivia.get(leading);
                 let trailing = self.trivia.get(trailing);
 
@@ -301,11 +301,11 @@ impl TriviaCache {
 
                 match entry {
                     RawEntryMut::Occupied(entry) => {
-                        println!("Trivia Hit");
+                        // println!("Trivia Hit");
                         entry.key().0.clone()
                     }
                     RawEntryMut::Vacant(entry) => {
-                        println!("Trivia Miss");
+                        // println!("Trivia Miss");
                         let trivia = GreenTrivia::new(pieces.iter().copied());
                         entry.insert_with_hasher(
                             hash,

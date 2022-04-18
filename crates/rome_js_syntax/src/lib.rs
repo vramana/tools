@@ -27,6 +27,7 @@ use crate::JsSyntaxKind::*;
 use rome_rowan::RawSyntaxKind;
 
 impl From<u16> for JsSyntaxKind {
+    #[inline]
     fn from(d: u16) -> JsSyntaxKind {
         assert!(d <= (JsSyntaxKind::__LAST as u16));
         unsafe { std::mem::transmute::<u16, JsSyntaxKind>(d) }
@@ -34,6 +35,7 @@ impl From<u16> for JsSyntaxKind {
 }
 
 impl From<JsSyntaxKind> for u16 {
+    #[inline]
     fn from(k: JsSyntaxKind) -> u16 {
         k as u16
     }
