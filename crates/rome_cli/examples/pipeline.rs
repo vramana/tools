@@ -2,8 +2,13 @@ use rome_js_parser::{
     lossless_tree_sink::{LosslessTreeSink2, SyntaxNode2},
     Parse, SourceType,
 };
-use rome_js_syntax::{JsAnyRoot, JsSyntaxKind, NodeOrToken, SyntaxNode, SyntaxToken, WalkEvent};
-use std::time::Instant;
+use rome_js_syntax::{
+    JsAnyArrayAssignmentPatternElement, JsAnyRoot, JsSyntaxKind, NodeOrToken, SyntaxNode,
+    SyntaxToken, WalkEvent,
+};
+use stack_graphs::graph::*;
+use stack_graphs::{arena::Handle, paths::Paths};
+use std::{any::Any, collections::HashMap, time::Instant};
 
 trait Pass {
     fn process(&mut self);
@@ -219,11 +224,16 @@ fn syntax_pipeline_100_cached(result: &Parse<JsAnyRoot>) {
 }
 
 trait PipelineStage {
-    fn handle(&mut self, tree: &LosslessTreeSink2, node: &SyntaxNode2);
+    fn as_any(&self) -> &dyn Any;
+    fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>);
 }
 
 impl PipelineStage for () {
-    fn handle(&mut self, tree: &LosslessTreeSink2, node: &SyntaxNode2) {}
+    fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>) {}
+
+    fn as_any(&self) -> &dyn Any {
+        todo!()
+    }
 }
 
 macro_rules! stages {
@@ -240,8 +250,12 @@ macro_rules! stages {
         where
             $($types: PipelineStage,)*
         {
-            fn handle(&mut self, tree: &LosslessTreeSink2, node: &SyntaxNode2) {
-                $(self.$stage.handle(tree, node);)*
+            fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>) {
+                $(self.$stage.handle(node);)*
+            }
+
+            fn as_any(&self) -> &dyn Any {
+                todo!()
             }
         }
     };
@@ -293,9 +307,13 @@ where
     TCurrent: PipelineStage,
     TNext: PipelineStage,
 {
-    fn handle(&mut self, tree: &LosslessTreeSink2, node: &SyntaxNode2) {
-        self.current.handle(tree, node);
-        self.next.handle(tree, node);
+    fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>) {
+        self.current.handle(&node);
+        self.next.handle(&node);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        todo!()
     }
 }
 
@@ -317,19 +335,14 @@ impl DynPipeline {
         self.stages.push(Box::new(stage));
     }
 
-    pub fn run(&mut self, tree: &LosslessTreeSink2) {
-        let v: Vec<_> = tree.all().collect();
+    pub fn run(&mut self, tree: &Parse<JsAnyRoot>) {
+        let v: Vec<_> = tree.syntax().descendants_with_tokens().collect();
 
         let a = Instant::now();
 
         for node in v {
-            match node {
-                rome_js_syntax::WalkEvent::Enter(node) => {
-                    for stage in self.stages.iter_mut() {
-                        stage.handle(tree, &node);
-                    }
-                }
-                rome_js_syntax::WalkEvent::Leave(_) => {}
+            for stage in self.stages.iter_mut() {
+                stage.handle(&node);
             }
         }
 
@@ -358,18 +371,13 @@ where
         }
     }
 
-    pub fn run(&mut self, tree: &LosslessTreeSink2) {
-        let v: Vec<_> = tree.all().collect();
+    pub fn run(&mut self, result: &Parse<JsAnyRoot>) {
+        let v: Vec<_> = result.syntax().descendants_with_tokens().collect();
 
         let a = Instant::now();
 
         for node in v {
-            match node {
-                rome_js_syntax::WalkEvent::Enter(node) => {
-                    self.stage.handle(tree, &node);
-                }
-                rome_js_syntax::WalkEvent::Leave(_) => {}
-            }
+            self.stage.handle(&node);
         }
 
         let took = Instant::now() - a;
@@ -381,46 +389,133 @@ where
 struct CountFunctionsStage(u64);
 
 impl PipelineStage for CountFunctionsStage {
-    fn handle(&mut self, tree: &LosslessTreeSink2, node: &SyntaxNode2) {
-        // match node {
-        //     rome_js_syntax::NodeOrToken::Node(node) => {
-        //         if node.kind() == JsSyntaxKind::JS_FUNCTION_DECLARATION {
-        //             self.0 += 1;
-        //         }
-        //     }
-        //     rome_js_syntax::NodeOrToken::Token(_) => {}
-        // }
+    fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>) {
+        match node {
+            rome_js_syntax::NodeOrToken::Node(node) => {
+                if node.kind() == JsSyntaxKind::JS_FUNCTION_DECLARATION {
+                    self.0 += 1;
+                }
+            }
+            rome_js_syntax::NodeOrToken::Token(_) => {}
+        }
 
-        let kind = tree.kinds[node.pos];
-        if kind == JsSyntaxKind::JS_FUNCTION_DECLARATION {
-            self.0 += 1;
+        // let kind = tree.kinds[node.pos];
+        // if kind == JsSyntaxKind::JS_FUNCTION_DECLARATION {
+        //     self.0 += 1;
+        // }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        todo!()
+    }
+}
+
+struct SymbolsAndScope {
+    scope: Vec<HashMap<String, Handle<Node>>>,
+    graph: StackGraph,
+    file: Handle<File>,
+}
+
+impl SymbolsAndScope {
+    fn new() -> Self {
+        let mut graph = StackGraph::default();
+        let file = graph.add_file("a.tsx").unwrap();
+
+        Self {
+            graph,
+            file,
+            scope: vec![HashMap::new()],
         }
     }
 }
 
-#[inline(never)]
-fn b(result: LosslessTreeSink2) {
-    let mut p = DynPipeline::new();
-    for _ in 0..10 {
-        p.push(CountFunctionsStage::default());
+impl PipelineStage for SymbolsAndScope {
+    fn handle(&mut self, node: &NodeOrToken<SyntaxNode, SyntaxToken>) {
+        match node {
+            NodeOrToken::Node(node) => {
+                use JsSyntaxKind::*;
+                match node.kind() {
+                    JS_IDENTIFIER_BINDING => {
+                        let txt = node.text_trimmed().to_string();
+                        let s = self.graph.add_symbol(&txt);
+
+                        let id = self.graph.new_node_id(self.file);
+                        let node = self.graph.add_pop_symbol_node(id, s, true).unwrap();
+
+                        self.scope.last_mut().unwrap().insert(txt, node.clone());
+                    }
+                    JS_REFERENCE_IDENTIFIER => {
+                        let txt = node.text_trimmed().to_string();
+                        let s = self.graph.add_symbol(&txt);
+                        let id = self.graph.new_node_id(self.file);
+
+                        let node = self.graph.add_push_symbol_node(id, s, true).unwrap();
+
+                        if let Some(sink) = self.scope.last().unwrap().get(&txt) {
+                            self.graph.add_edge(node, sink.clone(), 1);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            NodeOrToken::Token(_) => {}
+        }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[inline(never)]
+fn b(result: Parse<JsAnyRoot>) {
+    let mut p = DynPipeline::new();
+    p.push(SymbolsAndScope::new());
     p.run(&result);
 
-    let mut pipeline: Pipeline<
-        Pipeline10<
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-            CountFunctionsStage,
-        >,
-    > = Pipeline::new();
-    pipeline.run(&result);
+    let scope: &SymbolsAndScope = p.stages[0].as_any().downcast_ref().unwrap();
+
+    let start = scope
+        .graph
+        .iter_nodes()
+        .filter(|x| {
+            let name = dbg!(format!("{}", x.display(&scope.graph)));
+            name.contains("reference IndentStyle")
+        })
+        .next()
+        .unwrap();
+
+    let mut results = std::collections::BTreeSet::new();
+    let mut paths = Paths::new();
+    paths.find_all_paths(&scope.graph, [start], |graph, paths, path| {
+        if path.is_complete(graph) {
+            results.insert(path.display(graph, paths).to_string());
+        }
+    });
+    dbg!(results);
+
+    // for symbol in scope.graph.iter_symbols() {
+    //     println!("{}", symbol.display(&scope.graph));
+    // }
+    // for node in scope.graph.iter_nodes() {
+    //     println!("{:?}", node);
+    // }
+
+    // let mut pipeline: Pipeline<
+    //     Pipeline10<
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //         CountFunctionsStage,
+    //     >,
+    // > = Pipeline::new();
+    // pipeline.run(&result);
 }
 
 fn main() {
@@ -443,10 +538,10 @@ fn main() {
     // println!("Home Made Flat Tree");
     // println!("-----");
 
-    let a = Instant::now();
-    let result = rome_js_parser::parse2(&text, 0, SourceType::js_script());
-    let took = Instant::now() - a;
-    println!("parse: {:?}", took);
+    // let a = Instant::now();
+    // let result = rome_js_parser::parse2(&text, 0, SourceType::js_script());
+    // let took = Instant::now() - a;
+    // println!("parse: {:?}", took);
 
     // syntax2_pipeline_1(&result);
     // syntax2_pipeline_10(&result);
