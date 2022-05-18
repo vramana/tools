@@ -25,6 +25,7 @@ impl FormatNodeFields<JsTemplate> for FormatNodeRule<JsTemplate> {
             [
                 tag.format(),
                 type_arguments.format(),
+                line_suffix_boundary(),
                 l_tick,
                 concat_elements(formatter.format_all(elements.iter().formatted())?),
                 r_tick

@@ -75,7 +75,7 @@ let inlineComment = /* some comment */ (
 );
 
 let object = {
-  key: (someReallyLongFunctionCall(withLots, ofArguments)), /* some comment */
+  key: /* some comment */ (someReallyLongFunctionCall(withLots, ofArguments)),
 };
 
 // preserve parens only for type casts
@@ -86,7 +86,7 @@ functionCall(1 + /** @type {string} */
   (value), /** @type {!Foo} */ ({}));
 
 function returnValue() {
-  return (["hello", "you"]); /** @type {!Array.<string>} */
+  return /** @type {!Array.<string>} */ (["hello", "you"]);
 }
 
 // Only numberOrString is typecast

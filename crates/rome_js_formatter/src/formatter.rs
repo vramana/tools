@@ -203,18 +203,7 @@ where
             let comment = FormatElement::from(Token::from(comment));
 
             let content = if !is_single_line {
-                format_elements![
-                    if_group_breaks(line_suffix(format_elements![
-                        space_token(),
-                        comment.clone(),
-                        space_token(),
-                    ])),
-                    if_group_fits_on_single_line(format_elements![
-                        space_token(),
-                        comment,
-                        space_token(),
-                    ]),
-                ]
+                format_elements![space_token(), comment, space_token(),]
             } else {
                 format_elements![
                     line_suffix(format_elements![space_token(), comment]),

@@ -220,6 +220,8 @@ impl TemplateElement {
             }
         };
 
+        let middle = format_elements![middle, line_suffix_boundary()];
+
         if should_hard_group {
             Ok(hard_group_elements(formatted![
                 formatter,
