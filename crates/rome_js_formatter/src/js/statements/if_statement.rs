@@ -40,7 +40,7 @@ impl FormatNodeFields<JsIfStatement> for FormatNodeRule<JsIfStatement> {
             }
         }
 
-        Ok(hard_group_elements(concat_elements(if_chain)))
+        Ok(concat_elements(if_chain))
     }
 }
 

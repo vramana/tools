@@ -748,9 +748,8 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
         ];
 
         let grouped = match mode {
-            // Group is useless, the block indent would expand it right anyway but there are some uses
-            // that are nested inside of a `HardGroup` that depend on the expanded state. Leave it for now
-            DelimitedMode::BlockIndent => group_elements(delimited),
+            // Group is useless, the block indent would expand it right anyway
+            DelimitedMode::BlockIndent => delimited,
             DelimitedMode::SoftBlockIndent(group_id) | DelimitedMode::SoftBlockSpaces(group_id) => {
                 match group_id {
                     None => group_elements(delimited),

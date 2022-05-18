@@ -24,7 +24,7 @@ impl FormatNodeFields<JsParenthesizedExpression> for FormatNodeRule<JsParenthesi
         let expression = expression?;
 
         if is_simple_parenthesized_expression(node)? {
-            Ok(hard_group_elements(formatted![
+            formatted![
                 formatter,
                 [
                     if parenthesis_can_be_omitted {
@@ -39,7 +39,7 @@ impl FormatNodeFields<JsParenthesizedExpression> for FormatNodeRule<JsParenthesi
                         formatted![formatter, [r_paren_token.format()]]?
                     },
                 ]
-            ]?))
+            ]
         } else if parenthesis_can_be_omitted {
             // we mimic the format delimited utility function
             formatted![
