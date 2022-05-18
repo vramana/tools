@@ -811,7 +811,8 @@ pub fn hard_group_elements<T: Into<FormatElement>>(content: T) -> FormatElement 
         let (leading, content, trailing) = content.split_trivia();
         format_elements![
             leading,
-            FormatElement::HardGroup(Group::new(format_elements![content, trailing])),
+            FormatElement::HardGroup(Group::new(content)),
+            trailing
         ]
     }
 }
@@ -1784,10 +1785,6 @@ impl FormatElement {
     }
 
     /// Splits off the leading and trailing trivias (comments) from this [FormatElement]
-    ///
-    /// For [FormatElement::HardGroup] and [FormatElement::Group], the trailing and leading trivias
-    /// are automatically moved  outside of the group. The group itself is then recreated around the
-    /// content itself.
     pub fn split_trivia(self) -> (FormatElement, FormatElement, FormatElement) {
         match self {
             FormatElement::List(mut list) => {
@@ -1824,11 +1821,6 @@ impl FormatElement {
                     // All leading trivia
                     (FormatElement::List(list), empty_element(), empty_element())
                 }
-            }
-            FormatElement::HardGroup(group) => {
-                let (leading, content, trailing) = group.content.split_trivia();
-                // re-create the grouping around the content only
-                (leading, hard_group_elements(content), trailing)
             }
             // Non-list elements are returned directly
             _ => (empty_element(), self, empty_element()),
