@@ -16,7 +16,7 @@ type Content = Box<FormatElement>;
 ///
 /// Can be helpful if you need to return a `FormatElement` (e.g. in an else branch) but don't want
 /// to show any content.
-pub fn empty_element() -> FormatElement {
+pub const fn empty_element() -> FormatElement {
     FormatElement::Empty
 }
 
@@ -1724,8 +1724,8 @@ pub fn normalize_newlines<const N: usize>(text: &str, terminators: [char; N]) ->
     }
 }
 
-impl<L: Language> From<SyntaxTriviaPieceComments<L>> for Token {
-    fn from(trivia: SyntaxTriviaPieceComments<L>) -> Self {
+impl<L: Language> From<&SyntaxTriviaPieceComments<L>> for Token {
+    fn from(trivia: &SyntaxTriviaPieceComments<L>) -> Self {
         let range = trivia.text_range();
         Token::from_syntax_token_cow_slice(
             normalize_newlines(trivia.text().trim(), LINE_TERMINATORS),

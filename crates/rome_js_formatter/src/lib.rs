@@ -10,7 +10,7 @@ pub mod utils;
 
 use crate::formatter::suppressed_node;
 use crate::utils::has_formatter_suppressions;
-pub(crate) use formatter::{format_leading_trivia, format_trailing_trivia, JsFormatter};
+pub(crate) use formatter::JsFormatter;
 use rome_formatter::prelude::*;
 use rome_formatter::{FormatOwnedWithRule, FormatRefWithRule, Formatted, Printed};
 use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
@@ -18,6 +18,7 @@ use rome_rowan::AstNode;
 use rome_rowan::SyntaxResult;
 use rome_rowan::TextRange;
 
+use crate::comments::{print_dangling_comments, print_leading_comments, print_trailing_comments};
 use crate::cst::FormatJsSyntaxNode;
 use crate::options::JsFormatOptions;
 use std::iter::FusedIterator;
@@ -176,7 +177,12 @@ where
         let element = if has_formatter_suppressions(syntax) {
             suppressed_node(syntax).format(formatter)?
         } else {
-            Self::format_fields(node, formatter)?
+            format_elements![
+                print_leading_comments(node.syntax(), formatter)?,
+                print_dangling_comments(node.syntax(), formatter)?,
+                Self::format_fields(node, formatter)?,
+                print_trailing_comments(node.syntax(), formatter)?
+            ]
         };
 
         Ok(element)
@@ -204,13 +210,17 @@ impl FormatRule<JsSyntaxToken> for FormatJsSyntaxToken {
         token: &JsSyntaxToken,
         formatter: &Formatter<JsFormatOptions>,
     ) -> FormatResult<FormatElement> {
+        if token
+            .leading_trivia()
+            .pieces()
+            .any(|piece| piece.is_skipped())
+        {
+            return Err(FormatError::SyntaxError);
+        }
+
         formatter.track_token(token);
 
-        Ok(format_elements![
-            format_leading_trivia(token, formatter::TriviaPrintMode::Full),
-            Token::from(token),
-            format_trailing_trivia(token),
-        ])
+        Ok(Token::from(token).into())
     }
 }
 
@@ -367,6 +377,7 @@ function() {
 mod check_reformat;
 #[rustfmt::skip]
 mod generated;
+mod comments;
 pub mod options;
 
 #[cfg(test)]
@@ -379,14 +390,15 @@ mod test {
     #[ignore]
     // use this test check if your snippet prints as you wish, without using a snapshot
     fn quick_test() {
-        let src = r#"xyz.a(b!).a(b!).a(b!)
-
-"#;
+        let src = r#"[a,
+/*empty*/ ,] = b;"#;
         let syntax = SourceType::jsx();
         let tree = parse(src, 0, syntax.clone());
-        let result = format_node(JsFormatOptions::default(), &tree.syntax())
-            .unwrap()
-            .print();
+        let formatted = format_node(JsFormatOptions::default(), &tree.syntax()).unwrap();
+
+        dbg!(&formatted);
+
+        let result = formatted.print();
         check_reformat(CheckReformatParams {
             root: &tree.syntax(),
             text: result.as_code(),
@@ -396,7 +408,10 @@ mod test {
         });
         assert_eq!(
             result.as_code(),
-            r#"(a + (b * c)) > (65 + 5);
+            r#"let a = {
+	// leading comment
+	type: "bar", // trailing comment
+};
 "#
         );
     }

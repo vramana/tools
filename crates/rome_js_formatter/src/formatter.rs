@@ -6,6 +6,7 @@ use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
 use crate::{AsFormat, JsFormatOptions};
 use rome_rowan::{AstNode, AstNodeList, AstSeparatedList, Language, SyntaxTriviaPiece, TextRange};
 
+use crate::comments::{print_dangling_comments_for_token, print_trailing_comments_for_token};
 use std::iter::once;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -200,7 +201,7 @@ where
         if let Some(comment) = piece.as_comments() {
             let is_single_line = comment.text().trim_start().starts_with("//");
 
-            let comment = FormatElement::from(Token::from(comment));
+            let comment = FormatElement::from(Token::from(&comment));
 
             let content = if !is_single_line {
                 format_elements![space_token(), comment, space_token(),]
@@ -397,7 +398,7 @@ where
         if let Some(comment) = piece.as_comments() {
             let is_single_line = comment.text().starts_with("//");
 
-            let comment = FormatElement::from(Token::from(comment));
+            let comment = FormatElement::from(Token::from(&comment));
 
             let element_before_comment = if prepend_newline && index == first_comment {
                 hard_line_break()
@@ -461,13 +462,11 @@ pub(crate) trait JsFormatter {
     ) -> FormatElement {
         let formatter = self.as_formatter();
 
+        // TODO how to make sure that this token didn't contain any skipped token trivia?
+
         formatter.track_token(current_token);
 
-        format_elements![
-            format_leading_trivia(current_token, TriviaPrintMode::Full),
-            content_to_replace_with,
-            format_trailing_trivia(current_token),
-        ]
+        content_to_replace_with
     }
 
     /// Prints a separated list of nodes
@@ -535,14 +534,31 @@ pub(crate) trait JsFormatter {
                         // Use format_replaced instead of wrapping the result of format_token
                         // in order to remove only the token itself when the group doesn't break
                         // but still print its associated trivias unconditionally
-                        self.format_replaced(separator, trailing_separator_factory())
+                        format_elements![
+                            print_dangling_comments_for_token(separator, formatter)?,
+                            self.format_replaced(separator, trailing_separator_factory()),
+                            print_trailing_comments_for_token(separator, formatter)?,
+                        ]
                     } else if trailing_separator.is_mandatory() {
-                        formatted![formatter, [separator.format()]]?
+                        formatted![
+                            formatter,
+                            [
+                                print_dangling_comments_for_token(separator, formatter)?,
+                                separator.format(),
+                                print_trailing_comments_for_token(separator, formatter)?
+                            ]
+                        ]?
                     } else {
                         empty_element()
                     }
                 } else {
-                    formatted![formatter, [separator.format()]]?
+                    formatted![
+                        formatter,
+                        [
+                            separator.format(),
+                            print_trailing_comments_for_token(separator, formatter)?
+                        ]
+                    ]?
                 }
             } else if index == last_index {
                 if trailing_separator.is_allowed() {
@@ -678,48 +694,13 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
         formatter.track_token(open_token);
         formatter.track_token(close_token);
 
-        let open_token_trailing_trivia = format_trailing_trivia(open_token);
-        let close_token_leading_trivia = format_leading_trivia(close_token, TriviaPrintMode::Trim);
-
-        let open_token_trailing_trivia = if !open_token_trailing_trivia.is_empty() {
-            formatted![
-                formatter,
-                [open_token_trailing_trivia, soft_line_break_or_space()]
-            ]?
-        } else {
-            empty_element()
-        };
-        let close_token_leading_trivia = if !close_token_leading_trivia.is_empty() {
-            formatted![
-                formatter,
-                [soft_line_break_or_space(), close_token_leading_trivia]
-            ]?
-        } else {
-            empty_element()
-        };
-
         let formatted_content = match mode {
-            DelimitedMode::BlockIndent => block_indent(formatted![
-                formatter,
-                [
-                    open_token_trailing_trivia,
-                    content,
-                    close_token_leading_trivia
-                ]
-            ]?),
-            DelimitedMode::SoftBlockIndent(_) => soft_block_indent(formatted![
-                formatter,
-                [
-                    open_token_trailing_trivia,
-                    content,
-                    close_token_leading_trivia
-                ]
-            ]?),
+            DelimitedMode::BlockIndent => block_indent(formatted![formatter, [content,]]?),
+            DelimitedMode::SoftBlockIndent(_) => {
+                soft_block_indent(formatted![formatter, [content,]]?)
+            }
             DelimitedMode::SoftBlockSpaces(_) => {
-                if open_token_trailing_trivia.is_empty()
-                    && content.is_empty()
-                    && close_token_leading_trivia.is_empty()
-                {
+                if content.is_empty() {
                     empty_element()
                 } else {
                     formatted![
@@ -727,12 +708,7 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
                         [
                             indent(formatted![
                                 formatter,
-                                [
-                                    soft_line_break_or_space(),
-                                    open_token_trailing_trivia,
-                                    content,
-                                    close_token_leading_trivia,
-                                ]
+                                [soft_line_break_or_space(), content,]
                             ]?),
                             soft_line_break_or_space(),
                         ]
@@ -763,14 +739,7 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
             }
         };
 
-        formatted![
-            formatter,
-            [
-                format_leading_trivia(open_token, TriviaPrintMode::Full),
-                grouped,
-                format_trailing_trivia(close_token),
-            ]
-        ]
+        formatted![formatter, [grouped,]]
     }
 }
 

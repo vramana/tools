@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ConcatBuilder {
     elements: Vec<FormatElement>,
     size_hint: Option<usize>,

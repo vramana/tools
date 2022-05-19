@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use crate::comments::{print_dangling_comments_for_token, print_trailing_comments_for_token};
 use crate::AsFormat;
 use rome_js_syntax::{
     JsAnyArrayAssignmentPatternElement, JsAnyArrayBindingPatternElement, JsAnyArrayElement,
@@ -16,6 +17,8 @@ where
     N: AstSeparatedList<Language = JsLanguage, Node = I>,
     for<'a> I: ArrayNodeElement + AsFormat<'a>,
 {
+    // TODO ideally, have a builder for separated list that can be customized instead of copying all logic here.
+
     // Specifically do not use format_separated as arrays need separators
     // inserted after holes regardless of the formatting since this makes a
     // semantic difference
@@ -31,6 +34,15 @@ where
             let is_force = matches!(separator_mode, TrailingSeparatorMode::Force);
 
             let elem = node.format();
+
+            let (leading_comments, trailing_comments) = match element.trailing_separator()? {
+                None => (empty_element(), empty_element()),
+                Some(separator) => (
+                    print_dangling_comments_for_token(separator, formatter)?,
+                    print_trailing_comments_for_token(separator, formatter)?,
+                ),
+            };
+
             let separator = if is_disallow {
                 // Trailing separators are disallowed, replace it with an empty element
                 if let Some(separator) = element.trailing_separator()? {
@@ -42,13 +54,24 @@ where
                 // In forced separator mode or if this element is not the last in the list, print the separator
                 formatted![
                     formatter,
-                    [&element
-                        .trailing_separator()
-                        .format()
-                        .or_format(|| token(","))]
+                    [
+                        leading_comments,
+                        &element
+                            .trailing_separator()
+                            .format()
+                            .or_format(|| token(",")),
+                        trailing_comments
+                    ]
                 ]?
             } else if let Some(separator) = element.trailing_separator()? {
-                formatter.format_replaced(separator, if_group_breaks(token(",")))
+                formatter.format_replaced(
+                    separator,
+                    format_elements![
+                        leading_comments,
+                        if_group_breaks(token(",")),
+                        trailing_comments
+                    ],
+                )
             } else {
                 if_group_breaks(token(","))
             };

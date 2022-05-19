@@ -293,8 +293,9 @@ pub type FormatResult<F> = Result<F, FormatError>;
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// Series of errors encountered during formatting
 pub enum FormatError {
-    /// Node is missing and it should be required for a correct formatting
-    MissingRequiredChild,
+    /// Failed to format because of a syntax error in the source. This can either be because
+    /// a mandatory child node or token is missing or when a token has any skipped token trivia.
+    SyntaxError,
 
     /// In case our formatter doesn't know how to format a certain language
     UnsupportedLanguage,
@@ -306,7 +307,7 @@ pub enum FormatError {
 impl fmt::Display for FormatError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FormatError::MissingRequiredChild => fmt.write_str("missing required child"),
+            FormatError::SyntaxError => fmt.write_str("syntax error"),
             FormatError::UnsupportedLanguage => fmt.write_str("language is not supported"),
             FormatError::CapabilityDisabled => fmt.write_str("formatting capability is disabled"),
         }
@@ -324,7 +325,7 @@ impl From<SyntaxError> for FormatError {
 impl From<&SyntaxError> for FormatError {
     fn from(syntax_error: &SyntaxError) -> Self {
         match syntax_error {
-            SyntaxError::MissingRequiredChild => FormatError::MissingRequiredChild,
+            SyntaxError::MissingRequiredChild => FormatError::SyntaxError,
         }
     }
 }

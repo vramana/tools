@@ -87,7 +87,7 @@ impl<L: Language> SyntaxToken<L> {
     }
 
     /// Returns the text of a token, including all trivia as an owned value.
-    ///  
+    ///
     /// ```
     /// use rome_rowan::raw_language::{RawLanguage, RawLanguageKind, RawSyntaxTreeBuilder};
     /// use rome_rowan::*;
@@ -167,6 +167,14 @@ impl<L: Language> SyntaxToken<L> {
     /// Previous token in the tree (i.e, not necessary a sibling).
     pub fn prev_token(&self) -> Option<SyntaxToken<L>> {
         self.raw.prev_token().map(SyntaxToken::from)
+    }
+
+    pub fn prev_or_token(&self) -> Option<SyntaxElement<L>> {
+        self.raw.prev_or_token().map(SyntaxElement::from)
+    }
+
+    pub fn next_or_token(&self) -> Option<SyntaxElement<L>> {
+        self.raw.next_or_token().map(SyntaxElement::from)
     }
 
     /// Return a new version of this token detached from its parent node

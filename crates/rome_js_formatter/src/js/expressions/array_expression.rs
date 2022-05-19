@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use crate::generated::FormatJsArrayElementList;
-use crate::FormatNodeFields;
+use crate::{print_dangling_comments, FormatNodeFields};
 use rome_js_syntax::JsArrayExpression;
 use rome_js_syntax::JsArrayExpressionFields;
 
@@ -18,8 +18,10 @@ impl FormatNodeFields<JsArrayExpression> for FormatNodeRule<JsArrayExpression> {
 
         let group_id = formatter.group_id("array");
 
-        let elements =
-            FormatJsArrayElementList::format_with_group_id(&elements, formatter, Some(group_id))?;
+        let elements = format_elements![
+            dbg!(print_dangling_comments(&elements.syntax(), formatter)?),
+            FormatJsArrayElementList::format_with_group_id(&elements, formatter, Some(group_id))?
+        ];
 
         formatter
             .delimited(&l_brack_token?, elements, &r_brack_token?)
