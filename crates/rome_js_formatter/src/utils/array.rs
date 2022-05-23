@@ -34,7 +34,10 @@ where
             let separator = if is_disallow {
                 // Trailing separators are disallowed, replace it with an empty element
                 if let Some(separator) = element.trailing_separator()? {
-                    formatter.format_replaced(separator, empty_element())
+                    formatted![
+                        formatter,
+                        [formatter.replaced_token(separator, empty_element())]
+                    ]?
                 } else {
                     empty_element()
                 }
@@ -48,7 +51,10 @@ where
                         .or_format(|| token(","))]
                 ]?
             } else if let Some(separator) = element.trailing_separator()? {
-                formatter.format_replaced(separator, if_group_breaks(token(",")))
+                formatted![
+                    formatter,
+                    [formatter.replaced_token(separator, if_group_breaks(token(",")))]
+                ]?
             } else {
                 if_group_breaks(token(","))
             };

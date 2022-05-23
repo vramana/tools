@@ -11,6 +11,9 @@ impl FormatNodeFields<JsEmptyStatement> for FormatNodeRule<JsEmptyStatement> {
     ) -> FormatResult<FormatElement> {
         let JsEmptyStatementFields { semicolon_token } = node.as_fields();
 
-        Ok(formatter.format_replaced(&semicolon_token?, empty_element()))
+        formatted![
+            formatter,
+            [formatter.replaced_token(&semicolon_token?, empty_element())]
+        ]
     }
 }

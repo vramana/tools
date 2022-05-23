@@ -32,14 +32,30 @@ pub(crate) use simple::*;
 /// We can have two kind of separators: `,`, `;` or ASI.
 /// Because of how the grammar crafts the nodes, the parent will add the separator to the node.
 /// So here, we create - on purpose - an empty node.
-pub(crate) fn format_type_member_separator(
+pub(crate) struct FormatTypeMemberSeparator {
     separator_token: Option<JsSyntaxToken>,
-    formatter: &Formatter<JsFormatOptions>,
-) -> FormatElement {
-    if let Some(separator) = separator_token {
-        formatter.format_replaced(&separator, empty_element())
-    } else {
-        empty_element()
+}
+
+impl FormatTypeMemberSeparator {
+    pub fn new(token: Option<JsSyntaxToken>) -> Self {
+        Self {
+            separator_token: token,
+        }
+    }
+}
+
+impl Format for FormatTypeMemberSeparator {
+    type Options = JsFormatOptions;
+
+    fn format(&self, formatter: &Formatter<Self::Options>) -> FormatResult<FormatElement> {
+        if let Some(separator_token) = &self.separator_token {
+            formatted![
+                formatter,
+                [formatter.replaced_token(separator_token, empty_element())]
+            ]
+        } else {
+            Ok(empty_element())
+        }
     }
 }
 
@@ -162,14 +178,17 @@ pub(crate) fn format_template_chunk(
 ) -> FormatResult<FormatElement> {
     // Per https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-static-semantics-trv:
     // In template literals, the '\r' and '\r\n' line terminators are normalized to '\n'
-    Ok(formatter.format_replaced(
-        &chunk,
-        FormatElement::from(Token::from_syntax_token_cow_slice(
-            normalize_newlines(chunk.text_trimmed(), ['\r']),
+    formatted![
+        formatter,
+        [formatter.replaced_token(
             &chunk,
-            chunk.text_trimmed_range().start(),
-        )),
-    ))
+            FormatElement::from(Token::from_syntax_token_cow_slice(
+                normalize_newlines(chunk.text_trimmed(), ['\r']),
+                &chunk,
+                chunk.text_trimmed_range().start(),
+            )),
+        )]
+    ]
 }
 
 /// Function to format template literals and template literal types
@@ -386,29 +405,47 @@ pub(crate) fn format_with_semicolon(
     ]
 }
 
-pub(crate) fn format_string_literal_token(
+pub(crate) struct FormatStringLiteralToken {
     token: JsSyntaxToken,
-    formatter: &Formatter<JsFormatOptions>,
-) -> FormatElement {
-    let quoted = token.text_trimmed();
-    let (primary_quote_char, secondary_quote_char) = match formatter.options().quote_style {
-        QuoteStyle::Double => ('"', '\''),
-        QuoteStyle::Single => ('\'', '"'),
-    };
-    let content =
-        if quoted.starts_with(secondary_quote_char) && !quoted.contains(primary_quote_char) {
-            let s = &quoted[1..quoted.len() - 1];
-            let s = format!("{}{}{}", primary_quote_char, s, primary_quote_char);
-            Cow::Owned(normalize_newlines(&s, ['\r']).into_owned())
-        } else {
-            normalize_newlines(quoted, ['\r'])
-        };
+}
 
-    formatter.format_replaced(
-        &token,
-        Token::from_syntax_token_cow_slice(content, &token, token.text_trimmed_range().start())
-            .into(),
-    )
+impl FormatStringLiteralToken {
+    pub fn new(token: JsSyntaxToken) -> Self {
+        Self { token }
+    }
+}
+
+impl Format for FormatStringLiteralToken {
+    type Options = JsFormatOptions;
+
+    fn format(&self, formatter: &Formatter<Self::Options>) -> FormatResult<FormatElement> {
+        let quoted = self.token.text_trimmed();
+        let (primary_quote_char, secondary_quote_char) = match formatter.options().quote_style {
+            QuoteStyle::Double => ('"', '\''),
+            QuoteStyle::Single => ('\'', '"'),
+        };
+        let content =
+            if quoted.starts_with(secondary_quote_char) && !quoted.contains(primary_quote_char) {
+                let s = &quoted[1..quoted.len() - 1];
+                let s = format!("{}{}{}", primary_quote_char, s, primary_quote_char);
+                Cow::Owned(normalize_newlines(&s, ['\r']).into_owned())
+            } else {
+                normalize_newlines(quoted, ['\r'])
+            };
+
+        formatted![
+            formatter,
+            [formatter.replaced_token(
+                &self.token,
+                Token::from_syntax_token_cow_slice(
+                    content,
+                    &self.token,
+                    self.token.text_trimmed_range().start()
+                )
+                .into(),
+            )]
+        ]
+    }
 }
 
 /// A call like expression is one of:

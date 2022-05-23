@@ -22,7 +22,7 @@ impl FormatNodeFields<TsIntersectionType> for FormatNodeRule<TsIntersectionType>
                 // group does not break
                 let replaced =
                     if_group_breaks(format_elements![Token::from(&token), space_token()]);
-                formatter.format_replaced(&token, replaced)
+                formatted![formatter, [formatter.replaced_token(&token, replaced)]]?
             }
             None => if_group_breaks(format_elements![token("&"), space_token()]),
         };

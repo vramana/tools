@@ -16,7 +16,10 @@ impl FormatNodeFields<JsxText> for FormatNodeRule<JsxText> {
         let start = token.text_range().start();
         let new_token = Token::from_syntax_token_cow_slice(new_text, &token, start);
 
-        Ok(formatter.format_replaced(&token, FormatElement::from(new_token)))
+        formatted![
+            formatter,
+            [formatter.replaced_token(&token, FormatElement::from(new_token))]
+        ]
     }
 }
 

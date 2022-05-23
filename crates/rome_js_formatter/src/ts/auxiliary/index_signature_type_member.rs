@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::format_type_member_separator;
+use crate::utils::FormatTypeMemberSeparator;
 use crate::FormatNodeFields;
 use rome_js_syntax::{TsIndexSignatureTypeMember, TsIndexSignatureTypeMemberFields};
 
@@ -30,7 +30,7 @@ impl FormatNodeFields<TsIndexSignatureTypeMember> for FormatNodeRule<TsIndexSign
                 parameter.format(),
                 r_brack_token.format(),
                 type_annotation.format(),
-                format_type_member_separator(separator_token, formatter),
+                FormatTypeMemberSeparator::new(separator_token)
             ]
         ]
     }

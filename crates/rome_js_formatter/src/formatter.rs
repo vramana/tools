@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use std::cell::Cell;
 
 use rome_formatter::{normalize_newlines, FormatResult, GroupId, LINE_TERMINATORS};
 use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
@@ -7,6 +8,7 @@ use crate::{AsFormat, JsFormatOptions};
 use rome_rowan::{AstNode, AstNodeList, AstSeparatedList, Language, SyntaxTriviaPiece, TextRange};
 
 use std::iter::once;
+use std::marker::PhantomData;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TrailingSeparator {
@@ -454,20 +456,12 @@ pub(crate) trait JsFormatter {
     ///
     /// This will print the trivias that belong to `token` to `content`;
     /// `token` is then marked as consumed by the formatter.
-    fn format_replaced(
+    fn replaced_token<'a>(
         &self,
-        current_token: &JsSyntaxToken,
+        current_token: &'a JsSyntaxToken,
         content_to_replace_with: FormatElement,
-    ) -> FormatElement {
-        let formatter = self.as_formatter();
-
-        formatter.track_token(current_token);
-
-        format_elements![
-            format_leading_trivia(current_token, TriviaPrintMode::Full),
-            content_to_replace_with,
-            format_trailing_trivia(current_token),
-        ]
+    ) -> FormatReplaced<'a, JsFormatOptions> {
+        FormatReplaced::new(current_token, content_to_replace_with)
     }
 
     /// Prints a separated list of nodes
@@ -535,7 +529,10 @@ pub(crate) trait JsFormatter {
                         // Use format_replaced instead of wrapping the result of format_token
                         // in order to remove only the token itself when the group doesn't break
                         // but still print its associated trivias unconditionally
-                        self.format_replaced(separator, trailing_separator_factory())
+                        formatted![
+                            formatter,
+                            [self.replaced_token(separator, trailing_separator_factory())]
+                        ]?
                     } else if trailing_separator.is_mandatory() {
                         formatted![formatter, [separator.format()]]?
                     } else {
@@ -779,4 +776,44 @@ enum DelimitedMode {
     BlockIndent,
     SoftBlockIndent(Option<GroupId>),
     SoftBlockSpaces(Option<GroupId>),
+}
+
+pub struct FormatReplaced<'a, O> {
+    token: &'a JsSyntaxToken,
+    replacement_content: Cell<Option<FormatElement>>,
+    options: PhantomData<O>,
+}
+
+impl<'a, O> FormatReplaced<'a, O> {
+    fn new(token: &'a JsSyntaxToken, replacement_content: FormatElement) -> Self {
+        Self {
+            token,
+            replacement_content: Cell::new(Some(replacement_content)),
+            options: PhantomData,
+        }
+    }
+}
+
+impl<O> Format for FormatReplaced<'_, O> {
+    type Options = O;
+
+    fn format(&self, formatter: &Formatter<Self::Options>) -> FormatResult<FormatElement> {
+        let replacement_content = self.replacement_content.take();
+
+        debug_assert!(
+                replacement_content.is_some(),
+                "Tried to format the token {:?} twice. Use `replaced_token(..).memoized()` to memoize the output without calling format twice.",
+                self.token
+        );
+
+        formatter.track_token(self.token);
+
+        Ok(format_elements![
+            format_leading_trivia(self.token, TriviaPrintMode::Full),
+            // SAFETY: Should only ever be called once because `track_token` throws in debug build if called multiple
+            // times for the same token.
+            replacement_content,
+            format_trailing_trivia(self.token),
+        ])
+    }
 }

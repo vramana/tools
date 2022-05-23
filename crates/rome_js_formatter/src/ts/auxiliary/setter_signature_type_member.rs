@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::format_type_member_separator;
+use crate::utils::FormatTypeMemberSeparator;
 use crate::FormatNodeFields;
 use rome_js_syntax::{TsSetterSignatureTypeMember, TsSetterSignatureTypeMemberFields};
 
@@ -22,7 +22,6 @@ impl FormatNodeFields<TsSetterSignatureTypeMember> for FormatNodeRule<TsSetterSi
         let l_paren = l_paren_token.format();
         let parameter = parameter.format();
         let r_paren = r_paren_token.format();
-        let separator = format_type_member_separator(separator_token, formatter);
 
         formatted![
             formatter,
@@ -33,7 +32,7 @@ impl FormatNodeFields<TsSetterSignatureTypeMember> for FormatNodeRule<TsSetterSi
                 l_paren,
                 parameter,
                 r_paren,
-                separator
+                FormatTypeMemberSeparator::new(separator_token)
             ]
         ]
     }
