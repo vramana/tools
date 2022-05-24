@@ -13,13 +13,15 @@ use crate::utils::has_formatter_suppressions;
 pub(crate) use formatter::{format_leading_trivia, format_trailing_trivia, JsFormatter};
 use rome_formatter::prelude::*;
 use rome_formatter::{FormatOwnedWithRule, FormatRefWithRule, Formatted, Printed};
-use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
+use rome_js_syntax::{JsLanguage, JsSyntaxKind, JsSyntaxNode, JsSyntaxToken};
 use rome_rowan::AstNode;
 use rome_rowan::SyntaxResult;
 use rome_rowan::TextRange;
 
+use crate::comments::JsCommentStyle;
 use crate::cst::FormatJsSyntaxNode;
 use crate::options::JsFormatOptions;
+use rome_formatter::comments::{CommentKind, CommentStyle};
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 
@@ -206,11 +208,13 @@ impl FormatRule<JsSyntaxToken> for FormatJsSyntaxToken {
     ) -> FormatResult<FormatElement> {
         formatter.track_token(token);
 
-        Ok(format_elements![
-            format_leading_trivia(token, formatter::TriviaPrintMode::Full),
-            Token::from(token),
-            format_trailing_trivia(token),
-        ])
+        formatted![
+            formatter,
+            [
+                formatter.format_preceding_comments::<JsCommentStyle>(token),
+                FormatElement::from(Token::from(token)),
+            ]
+        ]
     }
 }
 
@@ -367,6 +371,7 @@ function() {
 mod check_reformat;
 #[rustfmt::skip]
 mod generated;
+mod comments;
 pub mod options;
 
 #[cfg(test)]

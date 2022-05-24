@@ -41,7 +41,7 @@ impl FormatRule<TsUnionTypeVariantList> for FormatTsUnionTypeVariantList {
                         ]
                     }
                 }
-            };
+            }?;
 
             elements.push(formatted![formatter, [group_elements(ty), separator]]?);
         }

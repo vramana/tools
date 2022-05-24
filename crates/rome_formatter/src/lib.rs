@@ -24,6 +24,7 @@
 extern crate core;
 
 mod builders;
+pub mod comments;
 pub mod format_element;
 mod format_extensions;
 pub mod formatter;

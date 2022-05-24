@@ -87,7 +87,7 @@ impl<L: Language> SyntaxToken<L> {
     }
 
     /// Returns the text of a token, including all trivia as an owned value.
-    ///  
+    ///
     /// ```
     /// use rome_rowan::raw_language::{RawLanguage, RawLanguageKind, RawSyntaxTreeBuilder};
     /// use rome_rowan::*;

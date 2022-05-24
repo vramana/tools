@@ -87,9 +87,13 @@ impl TriviaPiece {
     }
 }
 
+#[derive(Debug)]
 pub struct SyntaxTriviaPieceNewline<L: Language>(SyntaxTriviaPiece<L>);
+#[derive(Debug)]
 pub struct SyntaxTriviaPieceWhitespace<L: Language>(SyntaxTriviaPiece<L>);
+#[derive(Debug)]
 pub struct SyntaxTriviaPieceComments<L: Language>(SyntaxTriviaPiece<L>);
+#[derive(Debug)]
 pub struct SyntaxTriviaPieceSkipped<L: Language>(SyntaxTriviaPiece<L>);
 
 impl<L: Language> SyntaxTriviaPieceNewline<L> {
@@ -153,7 +157,7 @@ impl<L: Language> SyntaxTriviaPieceComments<L> {
         self.0.text_range()
     }
 
-    pub fn has_newline(&self) -> bool {
+    pub const fn has_newline(&self) -> bool {
         self.0.trivia.kind.is_multiline_comment()
     }
 

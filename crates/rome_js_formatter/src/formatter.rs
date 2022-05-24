@@ -4,9 +4,12 @@ use std::cell::Cell;
 use rome_formatter::{normalize_newlines, FormatResult, GroupId, LINE_TERMINATORS};
 use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
 
-use crate::{AsFormat, JsFormatOptions};
-use rome_rowan::{AstNode, AstNodeList, AstSeparatedList, Language, SyntaxTriviaPiece, TextRange};
+use crate::{AsFormat, JsCommentStyle, JsFormatOptions};
+use rome_rowan::{
+    AstNode, AstNodeList, AstSeparatedList, Language, SyntaxToken, SyntaxTriviaPiece, TextRange,
+};
 
+use rome_formatter::comments::CommentStyle;
 use std::iter::once;
 use std::marker::PhantomData;
 
@@ -202,7 +205,7 @@ where
         if let Some(comment) = piece.as_comments() {
             let is_single_line = comment.text().trim_start().starts_with("//");
 
-            let comment = FormatElement::from(Token::from(comment));
+            let comment = FormatElement::from(Token::from(&comment));
 
             let content = if !is_single_line {
                 format_elements![space_token(), comment, space_token(),]
@@ -213,7 +216,7 @@ where
                 ]
             };
 
-            elements.push(crate::comment(content));
+            elements.push(crate::comment(content, false));
         }
     }
 
@@ -399,7 +402,7 @@ where
         if let Some(comment) = piece.as_comments() {
             let is_single_line = comment.text().starts_with("//");
 
-            let comment = FormatElement::from(Token::from(comment));
+            let comment = FormatElement::from(Token::from(&comment));
 
             let element_before_comment = if prepend_newline && index == first_comment {
                 hard_line_break()
@@ -420,11 +423,10 @@ where
                 }
             };
 
-            elements.push(crate::comment(format_elements![
-                element_before_comment,
-                comment,
-                element_after_comment,
-            ]));
+            elements.push(crate::comment(
+                format_elements![element_before_comment, comment, element_after_comment,],
+                false,
+            ));
 
             line_count = 0;
             trim_mode = TriviaPrintMode::Full;
@@ -460,8 +462,11 @@ pub(crate) trait JsFormatter {
         &self,
         current_token: &'a JsSyntaxToken,
         content_to_replace_with: FormatElement,
-    ) -> FormatReplaced<'a, JsFormatOptions> {
-        FormatReplaced::new(current_token, content_to_replace_with)
+    ) -> FormatReplaced<'a, JsFormatOptions, JsCommentStyle> {
+        FormatReplaced::<JsFormatOptions, JsCommentStyle>::new(
+            current_token,
+            content_to_replace_with,
+        )
     }
 
     /// Prints a separated list of nodes
@@ -672,51 +677,39 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
             mode,
         } = self;
 
-        formatter.track_token(open_token);
+        // formatter.track_token(open_token);
         formatter.track_token(close_token);
+        //c
+        // let open_token_trailing_trivia = format_trailing_trivia(open_token);
+        // let close_token_leading_trivia = format_leading_trivia(close_token, TriviaPrintMode::Trim);
+        //
+        // let open_token_trailing_trivia = if !open_token_trailing_trivia.is_empty() {
+        //     formatted![
+        //         formatter,
+        //         [open_token_trailing_trivia, soft_line_break_or_space()]
+        //     ]?
+        // } else {
+        //     empty_element()
+        // };
+        // let close_token_leading_trivia = if !close_token_leading_trivia.is_empty() {
+        //     formatted![
+        //         formatter,
+        //         [soft_line_break_or_space(), close_token_leading_trivia]
+        //     ]?
+        // } else {
+        //     empty_element()
+        // };
 
-        let open_token_trailing_trivia = format_trailing_trivia(open_token);
-        let close_token_leading_trivia = format_leading_trivia(close_token, TriviaPrintMode::Trim);
+        let preceding_close_token =
+            formatter.format_preceding_comments::<JsCommentStyle>(close_token);
 
-        let open_token_trailing_trivia = if !open_token_trailing_trivia.is_empty() {
-            formatted![
-                formatter,
-                [open_token_trailing_trivia, soft_line_break_or_space()]
-            ]?
-        } else {
-            empty_element()
-        };
-        let close_token_leading_trivia = if !close_token_leading_trivia.is_empty() {
-            formatted![
-                formatter,
-                [soft_line_break_or_space(), close_token_leading_trivia]
-            ]?
-        } else {
-            empty_element()
-        };
+        let indented_content = formatted![formatter, [content, preceding_close_token]]?;
 
         let formatted_content = match mode {
-            DelimitedMode::BlockIndent => block_indent(formatted![
-                formatter,
-                [
-                    open_token_trailing_trivia,
-                    content,
-                    close_token_leading_trivia
-                ]
-            ]?),
-            DelimitedMode::SoftBlockIndent(_) => soft_block_indent(formatted![
-                formatter,
-                [
-                    open_token_trailing_trivia,
-                    content,
-                    close_token_leading_trivia
-                ]
-            ]?),
+            DelimitedMode::BlockIndent => block_indent(indented_content),
+            DelimitedMode::SoftBlockIndent(_) => soft_block_indent(indented_content),
             DelimitedMode::SoftBlockSpaces(_) => {
-                if open_token_trailing_trivia.is_empty()
-                    && content.is_empty()
-                    && close_token_leading_trivia.is_empty()
-                {
+                if indented_content.is_empty() {
                     empty_element()
                 } else {
                     formatted![
@@ -724,12 +717,7 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
                         [
                             indent(formatted![
                                 formatter,
-                                [
-                                    soft_line_break_or_space(),
-                                    open_token_trailing_trivia,
-                                    content,
-                                    close_token_leading_trivia,
-                                ]
+                                [soft_line_break_or_space(), indented_content]
                             ]?),
                             soft_line_break_or_space(),
                         ]
@@ -738,11 +726,16 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
             }
         };
 
-        let delimited = format_elements![
-            Token::from(open_token),
-            formatted_content,
-            Token::from(close_token),
-        ];
+        let delimited = formatted![
+            formatter,
+            [
+                open_token.format(),
+                formatted_content,
+                // By-pass comment formatting of close token, has been handled manually because
+                // the content must be inside of the `indent` group.
+                FormatElement::from(Token::from(close_token))
+            ]
+        ]?;
 
         let grouped = match mode {
             // Group is useless, the block indent would expand it right anyway
@@ -760,14 +753,7 @@ impl<'a, 'fmt> FormatDelimited<'a, 'fmt> {
             }
         };
 
-        formatted![
-            formatter,
-            [
-                format_leading_trivia(open_token, TriviaPrintMode::Full),
-                grouped,
-                format_trailing_trivia(close_token),
-            ]
-        ]
+        Ok(grouped)
     }
 }
 
@@ -778,23 +764,34 @@ enum DelimitedMode {
     SoftBlockSpaces(Option<GroupId>),
 }
 
-pub struct FormatReplaced<'a, O> {
-    token: &'a JsSyntaxToken,
+pub struct FormatReplaced<'a, O, S>
+where
+    S: CommentStyle,
+{
+    token: &'a SyntaxToken<S::Language>,
     replacement_content: Cell<Option<FormatElement>>,
+    comment_style: PhantomData<S>,
     options: PhantomData<O>,
 }
 
-impl<'a, O> FormatReplaced<'a, O> {
-    fn new(token: &'a JsSyntaxToken, replacement_content: FormatElement) -> Self {
+impl<'a, O, S> FormatReplaced<'a, O, S>
+where
+    S: CommentStyle,
+{
+    fn new(token: &'a SyntaxToken<S::Language>, replacement_content: FormatElement) -> Self {
         Self {
             token,
             replacement_content: Cell::new(Some(replacement_content)),
             options: PhantomData,
+            comment_style: PhantomData,
         }
     }
 }
 
-impl<O> Format for FormatReplaced<'_, O> {
+impl<O, S> Format for FormatReplaced<'_, O, S>
+where
+    S: CommentStyle + 'static,
+{
     type Options = O;
 
     fn format(&self, formatter: &Formatter<Self::Options>) -> FormatResult<FormatElement> {
@@ -808,12 +805,12 @@ impl<O> Format for FormatReplaced<'_, O> {
 
         formatter.track_token(self.token);
 
-        Ok(format_elements![
-            format_leading_trivia(self.token, TriviaPrintMode::Full),
-            // SAFETY: Should only ever be called once because `track_token` throws in debug build if called multiple
-            // times for the same token.
-            replacement_content,
-            format_trailing_trivia(self.token),
-        ])
+        formatted![
+            formatter,
+            [
+                formatter.format_preceding_comments::<S>(self.token),
+                replacement_content.unwrap_or(empty_element()),
+            ]
+        ]
     }
 }

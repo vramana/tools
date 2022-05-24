@@ -3,7 +3,7 @@ mod printer_options;
 pub use printer_options::*;
 
 use crate::format_element::{
-    ConditionalGroupContent, Group, LineMode, List, PrintMode, VerbatimKind,
+    Comment, ConditionalGroupContent, Group, LineMode, List, PrintMode, VerbatimKind,
 };
 use crate::intersperse::Intersperse;
 use crate::{hard_line_break, FormatElement, GroupId, Printed, SourceMarker, TextRange};
@@ -214,8 +214,26 @@ impl<'a> Printer<'a> {
                 self.queue_line_suffixes(HARD_BREAK, args, queue);
             }
 
-            FormatElement::Comment(content) => {
-                queue.enqueue(PrintElementCall::new(content.as_ref(), args));
+            FormatElement::Comment(comment) => {
+                if comment.previous_line
+                    && self
+                        .state
+                        .buffer
+                        .ends_with(self.options.line_ending.as_str())
+                {
+                    const HARD_BREAK: &FormatElement = &hard_line_break();
+                    self.state.buffer.truncate(
+                        self.state.buffer.len() - self.options.line_ending.as_str().len(),
+                    );
+                    self.state.restore_last_line();
+
+                    queue.extend([
+                        PrintElementCall::new(&comment.content, args),
+                        PrintElementCall::new(HARD_BREAK, args),
+                    ]);
+                } else {
+                    queue.enqueue(PrintElementCall::new(comment.content.as_ref(), args));
+                }
             }
 
             FormatElement::Verbatim(verbatim) => {
@@ -289,7 +307,8 @@ impl<'a> Printer<'a> {
         // If the indentation level has changed since these line suffixes were queued,
         // insert a line break before to push the comments into the new indent block
         // SAFETY: Indexing into line_suffixes is guarded by the above call to is_empty
-        let has_line_break = self.state.line_suffixes[0].args.indent < args.indent;
+        // TODO: Still needed?
+        let has_line_break = false; // self.state.line_suffixes[0].args.indent < args.indent;
 
         // Print this line break element again once all the line suffixes have been flushed
         let call_self = PrintElementCall::new(line_break, args);
@@ -442,6 +461,8 @@ impl<'a> Printer<'a> {
                 self.state
                     .buffer
                     .push_str(self.options.line_ending.as_str());
+                self.state.snapshot_line_state();
+
                 self.state.generated_line += 1;
                 self.state.generated_column = 0;
                 self.state.line_width = 0;
@@ -482,6 +503,7 @@ struct PrinterState<'a> {
     /// Tracks the mode in which groups with ids are printed. Stores the groups at `group.id()` index.
     /// This is based on the assumption that the group ids for a single document are dense.
     group_modes: Vec<Option<PrintMode>>,
+    last_line_snapshot: Option<LineStateSnapshot>,
     // Re-used queue to measure if a group fits. Optimisation to avoid re-allocating a new
     // vec everytime a group gets measured
     measure_queue: Vec<PrintElementCall<'a>>,
@@ -501,6 +523,27 @@ impl PrinterState<'_> {
             .get(index)
             .and_then(|option| option.as_ref().copied())
     }
+
+    fn snapshot_line_state(&mut self) {
+        self.last_line_snapshot = Some(LineStateSnapshot {
+            generated_column: self.generated_column,
+            line_width: self.line_width,
+        });
+    }
+
+    fn restore_last_line(&mut self) {
+        if let Some(snapshot) = self.last_line_snapshot.take() {
+            self.generated_line -= 1;
+            self.generated_column = snapshot.generated_column;
+            self.line_width = snapshot.line_width;
+        }
+    }
+}
+
+#[derive(Debug)]
+struct LineStateSnapshot {
+    line_width: usize,
+    generated_column: usize,
 }
 
 /// Stores arguments passed to `print_element` call, holding the state specific to printing an element.
@@ -591,6 +634,10 @@ impl<'a> ElementCallQueue<'a> {
 
     pub fn dequeue(&mut self) -> Option<PrintElementCall<'a>> {
         self.0.pop()
+    }
+
+    pub fn peek_element(&self) -> Option<&'a FormatElement> {
+        self.0.last().map(|call| call.element)
     }
 
     fn is_empty(&self) -> bool {
@@ -769,7 +816,9 @@ fn fits_element_on_line<'a, 'rest>(
             }
         }
 
-        FormatElement::Comment(content) => queue.enqueue(PrintElementCall::new(content, args)),
+        FormatElement::Comment(comment) => {
+            queue.enqueue(PrintElementCall::new(&comment.content, args))
+        }
 
         FormatElement::Verbatim(verbatim) => {
             queue.enqueue(PrintElementCall::new(&verbatim.element, args))

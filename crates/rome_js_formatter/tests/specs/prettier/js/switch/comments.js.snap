@@ -106,8 +106,7 @@ switch (x) {
 
 switch (x) {
   default: {
-    // comment
-    break;
+    break; // comment
   }
 }
 
@@ -124,8 +123,7 @@ switch (x) {
 
 switch (x) {
   default: {
-    /* comment */
-    break;
+    /* comment */ break;
   }
 }
 

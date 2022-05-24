@@ -86,8 +86,7 @@ let obj2 = {
 };
 
 let obj3 = {
-  // Comment
-  key: "val",
+  key: "val", // Comment
 };
 
 let obj4 = {
@@ -100,8 +99,7 @@ let obj5 = ["val"]; // Comment
 let obj6 = ["val"]; // Comment
 
 let obj7 = [
-  // Comment
-  "val",
+  "val", // Comment
 ];
 
 let obj8 = [

@@ -57,13 +57,21 @@ impl ConcatBuilder {
 
     #[inline]
     pub fn finish(mut self) -> FormatElement {
-        if self.elements.is_empty() {
+        Self::finish_inner(self.elements)
+    }
+
+    pub fn take(&mut self) -> FormatElement {
+        Self::finish_inner(std::mem::take(&mut self.elements))
+    }
+
+    fn finish_inner(mut elements: Vec<FormatElement>) -> FormatElement {
+        if elements.is_empty() {
             empty_element()
-        } else if self.elements.len() == 1 {
+        } else if elements.len() == 1 {
             // Safety: Guaranteed to succeed by the length check above
-            self.elements.pop().unwrap()
+            elements.pop().unwrap()
         } else {
-            FormatElement::List(List::new(self.elements))
+            FormatElement::List(List::new(elements))
         }
     }
 }

@@ -73,8 +73,7 @@ function inside(a = b) {
 function outside() {
   var b;
   function inside(a = b) {
-    // Still an error because b is declared inside the function
-    var b;
+    var b; // Still an error because b is declared inside the function
   }
 }
 
@@ -109,6 +108,6 @@ function f(
 
 # Lines exceeding max width of 80 characters
 ```
-   47: // Should not produce errors - can reference later parameters if they occur within a function expression initializer.
+   46: // Should not produce errors - can reference later parameters if they occur within a function expression initializer.
 ```
 

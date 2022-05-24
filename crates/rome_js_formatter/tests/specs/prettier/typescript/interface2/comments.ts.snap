@@ -1,6 +1,5 @@
 ---
 source: crates/rome_js_formatter/tests/prettier_tests.rs
-assertion_line: 175
 expression: comments.ts
 ---
 # Input
@@ -71,8 +70,7 @@ interface A5
     Base // comment2
 // comment3
 {
-  // comment4
-  foo(): bar;
+  foo(): bar; // comment4
 }
 
 interface A6

@@ -51,7 +51,7 @@ fn(function f() {
 # Output
 ```js
 function f() {
-  return /* a */ ;
+  return /* a */;
 }
 
 function f() {

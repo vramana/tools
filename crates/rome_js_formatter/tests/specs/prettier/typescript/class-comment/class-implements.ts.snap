@@ -1,8 +1,6 @@
 ---
 source: crates/rome_js_formatter/tests/prettier_tests.rs
-assertion_line: 144
 expression: class-implements.ts
-
 ---
 # Input
 ```js
@@ -90,8 +88,7 @@ class a1 extends b implements z {
 }
 
 class a2 extends b implements z {
-  // comment
-  constructor() {}
+  constructor() {} // comment
 }
 
 class a3 extends b

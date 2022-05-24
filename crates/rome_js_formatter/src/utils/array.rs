@@ -37,9 +37,9 @@ where
                     formatted![
                         formatter,
                         [formatter.replaced_token(separator, empty_element())]
-                    ]?
+                    ]
                 } else {
-                    empty_element()
+                    Ok(empty_element())
                 }
             } else if is_force || index != last_index {
                 // In forced separator mode or if this element is not the last in the list, print the separator
@@ -49,15 +49,15 @@ where
                         .trailing_separator()
                         .format()
                         .or_format(|| token(","))]
-                ]?
+                ]
             } else if let Some(separator) = element.trailing_separator()? {
                 formatted![
                     formatter,
                     [formatter.replaced_token(separator, if_group_breaks(token(",")))]
-                ]?
+                ]
             } else {
-                if_group_breaks(token(","))
-            };
+                Ok(if_group_breaks(token(",")))
+            }?;
 
             Ok((
                 node.syntax().clone(),

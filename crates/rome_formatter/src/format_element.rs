@@ -290,8 +290,11 @@ pub const fn line_suffix_boundary() -> FormatElement {
 /// );
 /// ```
 #[inline]
-pub fn comment(element: impl Into<FormatElement>) -> FormatElement {
-    FormatElement::Comment(Box::new(element.into()))
+pub fn comment(element: impl Into<FormatElement>, previous_line: bool) -> FormatElement {
+    FormatElement::Comment(Comment {
+        content: Box::new(element.into()),
+        previous_line,
+    })
 }
 
 /// Inserts a single space. Allows to separate different tokens.
@@ -1103,7 +1106,7 @@ pub enum FormatElement {
     /// a trivia content, and it should only have a limited influence on the
     /// formatting (for instance line breaks contained within will not cause
     /// the parent group to break if this element is at the start of it)
-    Comment(Content),
+    Comment(Comment),
 
     /// A token that tracks tokens/nodes that are printed using [`format_verbatim`](crate::Formatter::format_verbatim) API
     Verbatim(Verbatim),
@@ -1111,6 +1114,28 @@ pub enum FormatElement {
     /// A list of different variants representing the same content. The printer picks the best fitting content.
     /// Line breaks inside of a best fitting don't propagate to parent groups.
     BestFitting(BestFitting),
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct Comment {
+    pub(crate) content: Content,
+
+    /// The printer ensures that the comment gets printed on the previous line if set to `true` and the
+    /// comment directly precedes a line break.
+    pub(crate) previous_line: bool,
+}
+
+impl Debug for Comment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if self.previous_line {
+            f.debug_struct("")
+                .field("content", &self.content)
+                .field("previous_line", &self.previous_line)
+                .finish()
+        } else {
+            f.debug_tuple("").field(&self.content).finish()
+        }
+    }
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -1184,7 +1209,7 @@ impl Debug for FormatElement {
                 fmt.debug_tuple("LineSuffix").field(content).finish()
             }
             FormatElement::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
-            FormatElement::Comment(content) => fmt.debug_tuple("Comment").field(content).finish(),
+            FormatElement::Comment(comment) => write!(fmt, "Comment {comment:?}"),
             FormatElement::Verbatim(verbatim) => fmt
                 .debug_tuple("Verbatim")
                 .field(&verbatim.element)
@@ -1586,8 +1611,8 @@ pub fn normalize_newlines<const N: usize>(text: &str, terminators: [char; N]) ->
     }
 }
 
-impl<L: Language> From<SyntaxTriviaPieceComments<L>> for Token {
-    fn from(trivia: SyntaxTriviaPieceComments<L>) -> Self {
+impl<L: Language> From<&SyntaxTriviaPieceComments<L>> for Token {
+    fn from(trivia: &SyntaxTriviaPieceComments<L>) -> Self {
         let range = trivia.text_range();
         Token::from_syntax_token_cow_slice(
             normalize_newlines(trivia.text().trim(), LINE_TERMINATORS),
@@ -1636,7 +1661,7 @@ impl FormatElement {
             }
             FormatElement::Token(token) => token.contains('\n'),
             FormatElement::LineSuffix(_) => false,
-            FormatElement::Comment(content) => content.will_break(),
+            FormatElement::Comment(Comment { content, .. }) => content.will_break(),
             FormatElement::Verbatim(verbatim) => verbatim.element.will_break(),
             FormatElement::BestFitting(_) => false,
             FormatElement::LineSuffixBoundary => false,
