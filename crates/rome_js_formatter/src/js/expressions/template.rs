@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
 use crate::FormatNodeFields;
-use rome_js_syntax::JsAnyExpression::JsIdentifierExpression;
 use rome_js_syntax::{JsAnyExpression, JsTemplateFields};
 use rome_js_syntax::{JsAnyTemplateElement, JsTemplate};
 
@@ -10,6 +9,8 @@ impl FormatNodeFields<JsTemplate> for FormatNodeRule<JsTemplate> {
         node: &JsTemplate,
         formatter: &Formatter<JsFormatOptions>,
     ) -> FormatResult<FormatElement> {
+        println!("IS_SIMPLE: {}", is_simple_template_literal(node)?);
+
         let JsTemplateFields {
             tag,
             type_arguments,
@@ -42,28 +43,49 @@ fn is_simple_template_literal(literal: &JsTemplate) -> FormatResult<bool> {
         return Ok(false);
     }
 
-    let mut is_simple = false;
-
     for element in elements {
-        if let JsAnyTemplateElement::JsTemplateElement(element) = element {
-            if element.syntax().has_comments_direct() {
-                return Ok(false);
-            }
+        if element.syntax().has_comments_descendants() {
+            println!("1");
+            return Ok(false);
+        }
 
-            let expr = element.expression()?;
+        if let JsAnyTemplateElement::JsTemplateElement(element) = element {
+            let expression = element.expression()?;
             if matches!(
-                expr,
+                expression,
                 JsAnyExpression::JsIdentifierExpression(_) | JsAnyExpression::JsThisExpression(_)
             ) {
-                is_simple = true;
+                continue;
             }
 
-            let mut head = expr;
-            while let JsAnyExpression::JsStaticMemberExpression(member_expr) = head {
-                head = member_expr.object()?;
+            let mut head = expression;
+            loop {
+                match head {
+                    JsAnyExpression::JsStaticMemberExpression(static_member_expression) => {
+                        head = static_member_expression.object()?;
+                    }
+                    JsAnyExpression::JsComputedMemberExpression(computed_member_expression) => {
+                        let member = computed_member_expression.member()?;
+                        if !matches!(member, JsAnyExpression::JsAnyLiteralExpression(_)) {
+                            println!("2");
+                            return Ok(false);
+                        }
+                        head = computed_member_expression.object()?;
+                    }
+                    _ => {
+                        break;
+                    }
+                }
+            }
+
+            if matches!(
+                head,
+                JsAnyExpression::JsAnyLiteralExpression(_) | JsAnyExpression::JsThisExpression(_)
+            ) {
+                continue;
             }
         }
     }
 
-    Ok(is_simple)
+    Ok(true)
 }
