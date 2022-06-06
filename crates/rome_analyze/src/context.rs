@@ -9,7 +9,7 @@ use crate::{registry::Rule, LanguageOfRule};
 /// to be able to run all possible lint rules.
 ///
 /// Also instantiate all these services.
-pub trait WithServiceBag {
+pub trait LanguageSpecificServiceBag {
     type Services;
 
     fn new(root: JsAnyRoot) -> Self::Services;
@@ -17,32 +17,32 @@ pub trait WithServiceBag {
 
 /// Easy access to which services a language needs to run all
 /// lint rules.
-type ServicesOf<Language> = <Language as WithServiceBag>::Services;
+type ServicesOf<Language> = <Language as LanguageSpecificServiceBag>::Services;
 
 /// Carries all services a language needs to run all
 /// lint rules
 #[derive(Clone)]
 pub struct RuleContextServiceBag<Language>
 where
-    Language: WithServiceBag,
+    Language: LanguageSpecificServiceBag,
 {
     services: Arc<ServicesOf<Language>>,
 }
 
 impl<L> RuleContextServiceBag<L>
 where
-    L: WithServiceBag,
+    L: LanguageSpecificServiceBag,
 {
     pub fn new(root: JsAnyRoot) -> Self {
         Self {
-            services: Arc::new(<L as WithServiceBag>::new(root)),
+            services: Arc::new(<L as LanguageSpecificServiceBag>::new(root)),
         }
     }
 }
 
 impl<Language> std::ops::Deref for RuleContextServiceBag<Language>
 where
-    Language: WithServiceBag,
+    Language: LanguageSpecificServiceBag,
 {
     type Target = ServicesOf<Language>;
 
@@ -58,7 +58,7 @@ where
 pub(crate) struct RuleContext<TRule>
 where
     TRule: Rule,
-    LanguageOfRule<TRule>: WithServiceBag,
+    LanguageOfRule<TRule>: LanguageSpecificServiceBag,
 {
     query_result: <TRule as Rule>::Query,
     services: RuleContextServiceBag<LanguageOfRule<TRule>>,
@@ -67,7 +67,7 @@ where
 impl<TRule> RuleContext<TRule>
 where
     TRule: Rule,
-    LanguageOfRule<TRule>: WithServiceBag,
+    LanguageOfRule<TRule>: LanguageSpecificServiceBag,
 {
     pub fn new(
         query_result: <TRule as Rule>::Query,
@@ -100,7 +100,7 @@ where
 }
 
 /// Specific services for Javascript Rules
-impl WithServiceBag for JsLanguage {
+impl LanguageSpecificServiceBag for JsLanguage {
     type Services = (JsAnyRoot,);
 
     fn new(root: JsAnyRoot) -> Self::Services {

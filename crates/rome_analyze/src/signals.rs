@@ -10,7 +10,7 @@ use rome_rowan::{AstNode, Direction, Language, SyntaxNode};
 
 use crate::{
     categories::ActionCategory,
-    context::{WithServiceBag},
+    context::{LanguageSpecificServiceBag, WithServiceBag},
     registry::{LanguageRoot, RuleLanguage, RuleRoot},
     LanguageOfRule, RuleContextServiceBag,
 };
@@ -81,7 +81,7 @@ where
 pub(crate) struct RuleSignal<'a, R>
 where
     R: Rule,
-    LanguageOfRule<R>: WithServiceBag,
+    LanguageOfRule<R>: LanguageSpecificServiceBag,
 {
     file_id: FileId,
     root: &'a RuleRoot<R>,
@@ -93,7 +93,7 @@ where
 impl<'a, R> RuleSignal<'a, R>
 where
     R: Rule + 'static,
-    LanguageOfRule<R>: WithServiceBag,
+    LanguageOfRule<R>: LanguageSpecificServiceBag,
 {
     pub(crate) fn new_boxed(
         file_id: FileId,

@@ -100,7 +100,8 @@ fn run<'a, R: Rule>(
     node: &'a SyntaxNode<<R::Query as AstNode>::Language>,
 ) -> Option<Box<dyn AnalyzerSignal<RuleLanguage<R>> + 'a>>
 where
-    LanguageOfRule<R>: WithServiceBag,
+    R: Rule + 'static,
+    LanguageOfRule<R>: LanguageSpecificServiceBag,
 {
     if !<R::Query>::can_cast(node.kind()) {
         return None;
@@ -119,7 +120,7 @@ where
 pub(crate) trait Rule
 where
     Self: Sized,
-    LanguageOfRule<Self>: WithServiceBag,
+    LanguageOfRule<Self>: LanguageSpecificServiceBag,
 {
     /// The name of this rule, displayed in the diagnostics it emits
     const NAME: &'static str;

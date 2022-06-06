@@ -22,8 +22,8 @@ pub fn benchmark_analyze_lib(id: &str, root: &JsAnyRoot) -> BenchmarkSummary {
 }
 
 pub fn run_analyzer(root: &JsAnyRoot) {
-    let storage = RuleContextServiceBag::new(root.clone());
-    analyze(0, storage, root, AnalysisFilter::default(), |event| {
+    let services = RuleContextServiceBag::new(root.clone());
+    analyze(0, services, root, AnalysisFilter::default(), |event| {
         black_box(event.diagnostic());
         black_box(event.action());
         ControlFlow::<Never>::Continue(())

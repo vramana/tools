@@ -212,10 +212,10 @@ pub fn run(
     }
 
     let root = parse.tree();
-    let storage = RuleContextServiceBag::new(root.clone());
+    let services = RuleContextServiceBag::new(root.clone());
     rome_analyze::analyze(
         main_file_id,
-        storage,
+        services,
         &root,
         AnalysisFilter::default(),
         |signal| {
