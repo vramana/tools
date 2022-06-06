@@ -2,7 +2,11 @@ use std::{
     ffi::OsStr, fmt::Write, fs::read_to_string, os::raw::c_int, path::Path, slice, sync::Once,
 };
 
+<<<<<<< HEAD
 use rome_analyze::{AnalysisFilter, AnalyzerAction, ControlFlow, Never};
+=======
+use rome_analyze::{AnalysisFilter, AnalyzerAction, RuleContextServiceBag};
+>>>>>>> 88c8c7eca1 (fmt and clippy issues)
 use rome_console::{
     diff::{Diff, DiffMode},
     fmt::{Formatter, Termcolor},
@@ -46,8 +50,7 @@ fn run_test(input: &'static str, _: &str, _: &str, _: &str) {
     let mut diagnostics = Vec::new();
     let mut code_fixes = Vec::new();
 
-    let services = rome_analyze::ServicesBag::new();
-
+    let services = RuleContextServiceBag::new(root.clone());
     rome_analyze::analyze(0, services, &root, filter, |event| {
         if let Some(mut diag) = event.diagnostic() {
             if let Some(action) = event.action() {

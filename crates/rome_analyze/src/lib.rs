@@ -107,6 +107,7 @@ mod tests {
 
     use rome_js_parser::parse;
     use rome_js_syntax::SourceType;
+    use rome_rowan::SyntaxNodeCast;
 
     use crate::{analyze, registry::ServicesBag, AnalysisFilter};
     use crate::{analyze, AnalysisFilter, ControlFlow, Never};
@@ -121,7 +122,7 @@ mod tests {
         ";
 
         let parsed = parse(SOURCE, 0, SourceType::js_module());
-        let services = ServicesBag::new();
+        let services = RuleContextServiceBag::new(parsed.syntax().cast().unwrap());
 
         analyze(0, &parsed.tree(), AnalysisFilter::default(), |signal| {
             if let Some(diag) = signal.diagnostic() {

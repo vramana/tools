@@ -855,6 +855,7 @@ mod tests {
         let typed = tree.first_child().unwrap().cast::<RawRoot>().unwrap();
         let _ = typed.parent::<RawRoot>().unwrap();
 
+        #[derive(Clone)]
         struct RawRoot(SyntaxNode<RawLanguage>);
         impl AstNode for RawRoot {
             type Language = RawLanguage;
