@@ -3,19 +3,26 @@ use std::ops;
 use rome_diagnostics::file::FileId;
 use rome_js_syntax::{
     suppression::{has_suppressions_category, SuppressionCategory},
-    JsLanguage, TextRange, WalkEvent,
+    WalkEvent,
 };
 use rome_rowan::AstNode;
+use signals::AnalyzerSignal;
 
 mod analyzers;
 mod assists;
 mod categories;
+pub mod context;
 mod registry;
 mod signals;
 
 pub use crate::categories::{ActionCategory, RuleCategories, RuleCategory};
-use crate::registry::{LanguageRoot, RuleRegistry};
-pub use crate::signals::{AnalyzerAction, AnalyzerSignal};
+pub use crate::context::RuleContextServiceBag;
+use crate::registry::LanguageRoot;
+use crate::registry::RuleRegistry;
+use rome_js_syntax::JsLanguage;
+use rome_rowan::TextRange;
+
+pub(crate) type LanguageOfRule<TRule> = <<TRule as registry::Rule>::Query as AstNode>::Language;
 
 /// Allows filtering the list of rules that will be executed in a run of the analyzer,
 /// and at what source code range signals (diagnostics or actions) may be raised
@@ -63,6 +70,7 @@ pub type ControlFlow<B = Never> = ops::ControlFlow<B>;
 pub fn analyze<B>(
     file_id: FileId,
     root: &LanguageRoot<JsLanguage>,
+    ctx: RuleContextServiceBag<JsLanguage>,
     filter: AnalysisFilter,
     mut callback: impl FnMut(&dyn AnalyzerSignal<JsLanguage>) -> ControlFlow<B>,
 ) -> Option<B> {
@@ -86,7 +94,7 @@ pub fn analyze<B>(
             continue;
         }
 
-        if let ControlFlow::Break(b) = registry.analyze(file_id, root, node, &mut callback) {
+        if let ControlFlow::Break(b) = registry.analyze(file_id, root, ctx, &mut callback) {
             return Some(b);
         }
     }
@@ -100,6 +108,7 @@ mod tests {
     use rome_js_parser::parse;
     use rome_js_syntax::SourceType;
 
+    use crate::{analyze, registry::ServicesBag, AnalysisFilter};
     use crate::{analyze, AnalysisFilter, ControlFlow, Never};
 
     #[test]
@@ -112,6 +121,7 @@ mod tests {
         ";
 
         let parsed = parse(SOURCE, 0, SourceType::js_module());
+        let services = ServicesBag::new();
 
         analyze(0, &parsed.tree(), AnalysisFilter::default(), |signal| {
             if let Some(diag) = signal.diagnostic() {

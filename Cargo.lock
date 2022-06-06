@@ -1420,7 +1420,6 @@ dependencies = [
  "rome_js_parser",
  "rome_js_syntax",
  "rome_rowan",
- "rome_service",
  "serde",
  "serde_json",
  "similar",
@@ -1466,7 +1465,6 @@ dependencies = [
 name = "rome_js_syntax"
 version = "0.1.4"
 dependencies = [
- "rome_js_factory",
  "rome_rowan",
  "serde",
 ]

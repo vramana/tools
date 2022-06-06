@@ -1,5 +1,9 @@
 use rome_analyze::{analyze, AnalysisFilter, AnalyzerAction, ControlFlow, Never, RuleCategories};
 use rome_diagnostics::{Applicability, Diagnostic};
+use rome_analyze::{
+    analyze, AnalysisFilter, AnalyzerAction, RuleCategories, RuleContextServiceBag,
+};
+use rome_diagnostics::Diagnostic;
 use rome_formatter::{IndentStyle, LineWidth, Printed};
 use rome_fs::RomePath;
 use rome_js_formatter::context::{JsFormatOptions, QuoteStyle};
@@ -118,8 +122,13 @@ fn debug_print(_rome_path: &RomePath, parse: AnyParse) -> String {
     format!("{tree:#?}")
 }
 
+<<<<<<< HEAD
 fn lint(rome_path: &RomePath, parse: AnyParse, categories: RuleCategories) -> Vec<Diagnostic> {
     let tree = parse.tree();
+=======
+fn lint(rome_path: &RomePath, parse: AnyParse) -> Vec<Diagnostic> {
+    let root = parse.tree::<JsAnyRoot>();
+>>>>>>> 01f63525d4 (typed service bag for each language)
     let mut diagnostics = parse.into_diagnostics();
 
     let filter = AnalysisFilter {
@@ -128,7 +137,8 @@ fn lint(rome_path: &RomePath, parse: AnyParse, categories: RuleCategories) -> Ve
     };
 
     let file_id = rome_path.file_id();
-    analyze(file_id, &tree, filter, |signal| {
+    let services = RuleContextServiceBag::new(root.clone());
+    analyze(file_id, services, &root, filter, |signal| {
         if let Some(mut diag) = signal.diagnostic() {
             if let Some(action) = signal.action() {
                 diag.suggestions.push(action.into());
@@ -143,12 +153,17 @@ fn lint(rome_path: &RomePath, parse: AnyParse, categories: RuleCategories) -> Ve
     diagnostics
 }
 
+<<<<<<< HEAD
 fn code_actions(
     rome_path: &RomePath,
     parse: AnyParse,
     range: TextRange,
 ) -> Vec<AnalyzerAction<JsLanguage>> {
     let tree = parse.tree();
+=======
+fn code_actions(rome_path: &RomePath, parse: AnyParse, range: TextRange) -> Vec<AnalyzerAction> {
+    let root = parse.tree::<JsAnyRoot>();
+>>>>>>> 01f63525d4 (typed service bag for each language)
 
     let mut actions = Vec::new();
 
@@ -158,7 +173,8 @@ fn code_actions(
     };
 
     let file_id = rome_path.file_id();
-    analyze(file_id, &tree, filter, |signal| {
+    let services = RuleContextServiceBag::new(root.clone());
+    analyze(file_id, services, &root, filter, |signal| {
         if let Some(action) = signal.action() {
             actions.push(action);
         }

@@ -9,6 +9,7 @@ use rome_js_syntax::{
 };
 use rome_rowan::{AstNode, AstSeparatedList};
 
+use crate::context::RuleContext;
 use crate::{ActionCategory, RuleCategory};
 
 use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
@@ -26,11 +27,11 @@ impl Rule for UseSingleVarDeclarator {
         Option<JsSyntaxToken>,
     );
 
-    fn run(node: &Self::Query) -> Option<Self::State> {
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State> {
         let JsVariableStatementFields {
             declaration,
             semicolon_token,
-        } = node.as_fields();
+        } = ctx.query().as_fields();
 
         let JsVariableDeclarationFields { kind, declarators } = declaration.ok()?.as_fields();
 
@@ -43,15 +44,17 @@ impl Rule for UseSingleVarDeclarator {
         Some((kind, declarators, semicolon_token))
     }
 
-    fn diagnostic(node: &Self::Query, _state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(ctx: &crate::context::RuleContext<Self>, _state: &Self::State) -> Option<RuleDiagnostic> {
+        let node = ctx.query();
         Some(RuleDiagnostic::warning(
             node.range(),
             "Declare variables separately",
         ))
     }
 
-    fn action(root: JsAnyRoot, node: &Self::Query, state: &Self::State) -> Option<JsRuleAction> {
+    fn action(ctx: &crate::context::RuleContext<Self>, state: &Self::State) -> Option<JsRuleAction> {
         let (kind, declarators, semicolon_token) = state;
+        let node = ctx.query();
 
         let prev_parent = node.syntax().parent()?;
         if !JsStatementList::can_cast(prev_parent.kind())
@@ -97,7 +100,8 @@ impl Rule for UseSingleVarDeclarator {
             applicability: Applicability::Always,
             message: markup! { "Break out into multiple declarations" }.to_owned(),
             root: JsAnyRoot::unwrap_cast(
-                root.into_syntax()
+                ctx.root()
+                    .into_syntax()
                     .replace_child(prev_parent.into(), next_parent.into())?,
             ),
         })

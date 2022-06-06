@@ -7,7 +7,7 @@ use rome_js_syntax::{
 use rome_rowan::{AstNode, AstNodeExt, SyntaxToken};
 
 use crate::registry::{Rule, RuleAction, RuleDiagnostic};
-use crate::{ActionCategory, RuleCategory};
+use crate::{ActionCategory, LanguageOfRule, RuleCategory};
 
 pub struct NoCompareNegZeroState {
     operator_kind: &'static str,
@@ -60,7 +60,7 @@ impl Rule for NoCompareNegZero {
         root: rome_js_syntax::JsAnyRoot,
         node: &Self::Query,
         state: &Self::State,
-    ) -> Option<crate::registry::JsRuleAction> {
+    ) -> Option<RuleAction<LanguageOfRule<Self>>> {
         let root = if state.left_need_replaced && state.right_need_replaced {
             let binary = node.clone().replace_node(
                 node.left().ok()?,

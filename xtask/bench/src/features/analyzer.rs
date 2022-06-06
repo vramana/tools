@@ -1,6 +1,6 @@
 use crate::BenchmarkSummary;
 use criterion::black_box;
-use rome_analyze::{analyze, AnalysisFilter, ControlFlow, Never};
+use rome_analyze::{analyze, AnalysisFilter, ControlFlow, Never, RuleContextServiceBag};
 use rome_js_syntax::JsAnyRoot;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
@@ -22,7 +22,8 @@ pub fn benchmark_analyze_lib(id: &str, root: &JsAnyRoot) -> BenchmarkSummary {
 }
 
 pub fn run_analyzer(root: &JsAnyRoot) {
-    analyze(0, root, AnalysisFilter::default(), |event| {
+    let storage = RuleContextServiceBag::new(root.clone());
+    analyze(0, storage, root, AnalysisFilter::default(), |event| {
         black_box(event.diagnostic());
         black_box(event.action());
         ControlFlow::<Never>::Continue(())

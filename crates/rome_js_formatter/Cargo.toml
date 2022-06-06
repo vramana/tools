@@ -14,7 +14,7 @@ unicode-width = "0.1.9"
 
 [dev-dependencies]
 rome_fs = { path = "../rome_fs" }
-rome_service = { path = "../rome_service" }
+# rome_service = { path = "../rome_service" }
 rome_js_parser = { path = "../rome_js_parser" }
 rome_js_factory = { path = "../rome_js_factory" }
 serde = { version = "1", features = ["derive"] }

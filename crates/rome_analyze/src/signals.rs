@@ -10,8 +10,12 @@ use rome_rowan::{AstNode, Direction, Language, SyntaxNode};
 
 use crate::{
     categories::ActionCategory,
-    registry::{LanguageRoot, Rule, RuleLanguage, RuleRoot},
+    context::{WithServiceBag},
+    registry::{LanguageRoot, RuleLanguage, RuleRoot},
+    LanguageOfRule, RuleContextServiceBag,
 };
+
+use crate::registry::Rule;
 
 /// Event raised by the analyzer when a [Rule](crate::registry::Rule)
 /// emits a diagnostic, a code action, or both
@@ -74,15 +78,23 @@ where
 }
 
 /// Analyzer-internal implementation of [AnalyzerSignal] for a specific [Rule](crate::registry::Rule)
-pub(crate) struct RuleSignal<'a, R: Rule> {
+pub(crate) struct RuleSignal<'a, R>
+where
+    R: Rule,
+    LanguageOfRule<R>: WithServiceBag,
+{
     file_id: FileId,
     root: &'a RuleRoot<R>,
-    node: R::Query,
-    state: R::State,
+    node: <R as Rule>::Query,
+    state: <R as Rule>::State,
     _rule: PhantomData<R>,
 }
 
-impl<'a, R: Rule + 'static> RuleSignal<'a, R> {
+impl<'a, R> RuleSignal<'a, R>
+where
+    R: Rule + 'static,
+    LanguageOfRule<R>: WithServiceBag,
+{
     pub(crate) fn new_boxed(
         file_id: FileId,
         root: &'a RuleRoot<R>,
@@ -99,7 +111,10 @@ impl<'a, R: Rule + 'static> RuleSignal<'a, R> {
     }
 }
 
-impl<'a, R: Rule> AnalyzerSignal<RuleLanguage<R>> for RuleSignal<'a, R> {
+impl<'a, R: Rule> AnalyzerSignal<RuleLanguage<R>> for RuleSignal<'a, R>
+where
+    LanguageOfRule<R>: WithServiceBag,
+{
     fn diagnostic(&self) -> Option<Diagnostic> {
         R::diagnostic(&self.node, &self.state)
             .map(|diag| diag.into_diagnostic(self.file_id, R::NAME))

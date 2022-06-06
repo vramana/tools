@@ -7,8 +7,9 @@ use rome_js_syntax::{
 use rome_rowan::AstNodeExt;
 
 use crate::{
-    registry::{JsRuleAction, Rule},
-    ActionCategory, RuleCategory,
+    context::RuleContext,
+    registry::{JsRuleAction, Rule, RuleAction},
+    ActionCategory, LanguageOfRule, RuleCategory,
 };
 
 pub(crate) enum FlipBinExp {}
@@ -20,7 +21,9 @@ impl Rule for FlipBinExp {
     type Query = JsBinaryExpression;
     type State = JsSyntaxKind;
 
-    fn run(node: &Self::Query) -> Option<Self::State> {
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State> {
+        let node = ctx.query();
+
         let JsBinaryExpressionFields {
             left,
             operator_token: _,
@@ -34,7 +37,13 @@ impl Rule for FlipBinExp {
         invert_op(node.operator().ok()?)
     }
 
-    fn action(root: JsAnyRoot, node: &Self::Query, op: &Self::State) -> Option<JsRuleAction> {
+    fn action(
+        root: JsAnyRoot,
+        ctx: &crate::context::RuleContext<Self>,
+        op: &Self::State,
+    ) -> Option<RuleAction<LanguageOfRule<Self>>> {
+        let node = ctx.query();
+
         let prev_left = node.left().ok()?;
         let new_left = node.right().ok()?;
         let new_node = node.clone().replace_node(prev_left, new_left)?;

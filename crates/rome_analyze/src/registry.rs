@@ -3,20 +3,23 @@ use rome_console::{markup, MarkupBuf};
 use rome_diagnostics::file::FileSpan;
 use rome_diagnostics::{file::FileId, Applicability, Severity};
 use rome_diagnostics::{Diagnostic, DiagnosticTag, Footer, Span, SubDiagnostic};
-use rome_js_syntax::JsLanguage;
-use rome_js_syntax::TextRange;
+use rome_js_syntax::{JsLanguage, TextRange};
 use rome_rowan::{AstNode, Language, SyntaxNode};
 
+use crate::signals::{AnalyzerSignal, RuleSignal};
 use crate::{
     analyzers::*,
     assists::*,
     categories::{ActionCategory, RuleCategory},
-    signals::{AnalyzerSignal, RuleSignal},
-    AnalysisFilter, ControlFlow,
+    context::{RuleContext, RuleContextServiceBag, WithServiceBag},
+    AnalysisFilter, ControlFlow, LanguageOfRule,
 };
 
 /// The rule registry holds type-erased instances of all active analysis rules
-pub(crate) struct RuleRegistry<L: Language> {
+pub(crate) struct RuleRegistry<L>
+where
+    L: Language + WithServiceBag,
+{
     rules: Vec<RegistryRule<L>>,
 }
 
@@ -59,14 +62,14 @@ pub(crate) type LanguageRoot<L> = <L as Language>::Root;
 
 impl<L> RuleRegistry<L>
 where
-    L: Language,
+    L: Language + WithServiceBag,
 {
     // Run all rules known to the registry associated with nodes of type N
     pub(crate) fn analyze<B>(
         &self,
         file_id: FileId,
-        root: &LanguageRoot<L>,
-        node: SyntaxNode<L>,
+        root: &LanguageRoot<JsLanguage>,
+        ctx: RuleContextServiceBag<JsLanguage>,
         callback: &mut impl FnMut(&dyn AnalyzerSignal<L>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         for rule in &self.rules {
@@ -85,28 +88,39 @@ where
 type RegistryRule<L> = for<'a> fn(
     FileId,
     &'a LanguageRoot<L>,
+    RuleContextServiceBag<L>,
     &'a SyntaxNode<L>,
 ) -> Option<Box<dyn AnalyzerSignal<L> + 'a>>;
 
 /// Generic implementation of RegistryRule for any rule type R
-fn run<'a, R: Rule + 'static>(
+fn run<'a, R: Rule>(
     file_id: FileId,
     root: &'a RuleRoot<R>,
+    services: RuleContextServiceBag<LanguageOfRule<R>>,
     node: &'a SyntaxNode<<R::Query as AstNode>::Language>,
-) -> Option<Box<dyn AnalyzerSignal<RuleLanguage<R>> + 'a>> {
+) -> Option<Box<dyn AnalyzerSignal<RuleLanguage<R>> + 'a>>
+where
+    LanguageOfRule<R>: WithServiceBag,
+{
     if !<R::Query>::can_cast(node.kind()) {
         return None;
     }
 
     let node = <R::Query>::cast(node.clone())?;
-    let result = R::run(&node)?;
+    let ctx = RuleContext::new(node.clone(), services);
+
+    let result = R::run(&ctx)?;
     Some(RuleSignal::<R>::new_boxed(file_id, root, node, result))
 }
 
 /// Trait implemented by all analysis rules: declares interest to a certain AstNode type,
 /// and a callback function to be executed on all nodes matching the query to possibly
 /// raise an analysis event
-pub(crate) trait Rule {
+pub(crate) trait Rule
+where
+    Self: Sized,
+    LanguageOfRule<Self>: WithServiceBag,
+{
     /// The name of this rule, displayed in the diagnostics it emits
     const NAME: &'static str;
     /// The category this rule belong to, this is used for broadly filtering
@@ -125,13 +139,16 @@ pub(crate) trait Rule {
     /// being analyzed. If it returns `Some` the state object will be wrapped
     /// in a generic `AnalyzerSignal`, and the consumer of the analyzer may call
     /// `diagnostic` or `action` on it
-    fn run(node: &Self::Query) -> Option<Self::State>;
+    fn run(node: &crate::context::RuleContext<Self>) -> Option<Self::State>;
 
     /// Called by the consumer of the analyzer to try to generate a diagnostic
     /// from a signal raised by `run`
     ///
     /// The default implementation returns None
-    fn diagnostic(_node: &Self::Query, _state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        _node: &crate::context::RuleContext<Self>,
+        _state: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         None
     }
 
@@ -141,7 +158,7 @@ pub(crate) trait Rule {
     /// The default implementation returns None
     fn action(
         _root: RuleRoot<Self>,
-        _node: &Self::Query,
+        _node: &crate::context::RuleContext<Self>,
         _state: &Self::State,
     ) -> Option<RuleAction<RuleLanguage<Self>>> {
         None

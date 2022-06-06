@@ -2,12 +2,13 @@ use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{
-    JsAnyAssignment, JsAnyAssignmentPattern, JsAnyExpression, JsAnyRoot,
+    JsAnyAssignment, JsAnyAssignmentPattern, JsAnyExpression,
     JsComputedMemberExpression, JsComputedMemberExpressionFields, JsStaticMemberExpression,
     JsStaticMemberExpressionFields, JsUnaryExpression, JsUnaryOperator, T,
 };
 use rome_rowan::{AstNode, AstNodeExt};
 
+use crate::context::RuleContext;
 use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
 use crate::{ActionCategory, RuleCategory};
 
@@ -20,17 +21,19 @@ impl Rule for NoDelete {
     type Query = JsUnaryExpression;
     type State = MemberExpression;
 
-    fn run(node: &Self::Query) -> Option<Self::State> {
-        let op = node.operator().ok()?;
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State> {
+        let op = ctx.query().operator().ok()?;
         if op != JsUnaryOperator::Delete {
             return None;
         }
 
-        let argument = node.argument().ok()?;
+        let argument = ctx.query().argument().ok()?;
         MemberExpression::try_from(argument).ok()
     }
 
-    fn diagnostic(node: &Self::Query, _state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(ctx: &crate::context::RuleContext<Self>, _state: &Self::State) -> Option<RuleDiagnostic> {
+        let node = ctx.query();
+
         Some(
             RuleDiagnostic::warning(node.range(), markup! {
                 "This is an unexpected use of the "<Emphasis>"delete"</Emphasis>" operator."
@@ -39,9 +42,9 @@ impl Rule for NoDelete {
         )
     }
 
-    fn action(root: JsAnyRoot, node: &Self::Query, state: &Self::State) -> Option<JsRuleAction> {
-        let root = root.replace_node(
-            JsAnyExpression::from(node.clone()),
+    fn action(ctx: &crate::context::RuleContext<Self>, state: &Self::State) -> Option<JsRuleAction> {
+        let root = ctx.root().replace_node(
+            JsAnyExpression::from(ctx.query().clone()),
             JsAnyExpression::from(make::js_assignment_expression(
                 state.clone().try_into().ok()?,
                 make::token_decorated_with_space(T![=]),

@@ -1,6 +1,6 @@
 #![allow(clippy::unused_unit)] // Bug in wasm_bindgen creates unused unit warnings. See wasm_bindgen#2774
 
-use rome_analyze::{AnalysisFilter, ControlFlow, Never};
+use rome_analyze::{AnalysisFilter, ControlFlow, Never, RuleContextServiceBag};
 use rome_diagnostics::file::SimpleFiles;
 use rome_diagnostics::termcolor::{ColorSpec, WriteColor};
 use rome_diagnostics::Emitter;
@@ -211,9 +211,12 @@ pub fn run(
             .unwrap();
     }
 
+    let root = parse.tree();
+    let storage = RuleContextServiceBag::new(root.clone());
     rome_analyze::analyze(
         main_file_id,
-        &parse.tree(),
+        storage,
+        &root,
         AnalysisFilter::default(),
         |signal| {
             if let Some(mut diag) = signal.diagnostic() {
