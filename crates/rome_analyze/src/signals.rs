@@ -1,5 +1,12 @@
 use std::marker::PhantomData;
 
+use crate::context::RuleContext;
+use crate::{
+    categories::ActionCategory,
+    context::LanguageSpecificServiceBag,
+    registry::{LanguageRoot, RuleLanguage, RuleRoot},
+    LanguageOfRule, RuleContextServiceBag,
+};
 use rome_console::MarkupBuf;
 use rome_diagnostics::{
     file::{FileId, FileSpan},
@@ -7,13 +14,6 @@ use rome_diagnostics::{
 };
 use rome_js_syntax::TextRange;
 use rome_rowan::{AstNode, Direction, Language, SyntaxNode};
-
-use crate::{
-    categories::ActionCategory,
-    context::{LanguageSpecificServiceBag, WithServiceBag},
-    registry::{LanguageRoot, RuleLanguage, RuleRoot},
-    LanguageOfRule, RuleContextServiceBag,
-};
 
 use crate::registry::Rule;
 
@@ -86,6 +86,7 @@ where
     file_id: FileId,
     root: &'a RuleRoot<R>,
     node: <R as Rule>::Query,
+    services: RuleContextServiceBag<LanguageOfRule<R>>,
     state: <R as Rule>::State,
     _rule: PhantomData<R>,
 }
@@ -99,12 +100,14 @@ where
         file_id: FileId,
         root: &'a RuleRoot<R>,
         node: R::Query,
+        services: RuleContextServiceBag<LanguageOfRule<R>>,
         state: R::State,
     ) -> Box<dyn AnalyzerSignal<RuleLanguage<R>> + 'a> {
         Box::new(Self {
             file_id,
             root,
             node,
+            services,
             state,
             _rule: PhantomData,
         })
@@ -113,27 +116,29 @@ where
 
 impl<'a, R: Rule> AnalyzerSignal<RuleLanguage<R>> for RuleSignal<'a, R>
 where
-    LanguageOfRule<R>: WithServiceBag,
+    LanguageOfRule<R>: LanguageSpecificServiceBag,
 {
     fn diagnostic(&self) -> Option<Diagnostic> {
-        R::diagnostic(&self.node, &self.state)
-            .map(|diag| diag.into_diagnostic(self.file_id, R::NAME))
+        let ctx = RuleContext::new(self.node.clone(), self.services.clone());
+
+        R::diagnostic(&ctx, &self.state).map(|diag| diag.into_diagnostic(self.file_id, R::NAME))
     }
 
     fn action(&self) -> Option<AnalyzerAction<RuleLanguage<R>>> {
-        R::action(self.root.clone(), &self.node, &self.state).and_then(|action| {
-            let (original_range, new_range) =
-                find_diff_range(self.root.syntax(), action.root.syntax())?;
-            Some(AnalyzerAction {
-                rule_name: R::NAME,
-                file_id: self.file_id,
-                category: action.category,
-                applicability: action.applicability,
-                message: action.message,
-                original_range,
-                new_range,
-                root: action.root,
-            })
+        let ctx = RuleContext::new(self.node.clone(), self.services.clone());
+
+        let action = R::action(&ctx, &self.state)?;
+        let (original_range, new_range) =
+            find_diff_range(self.root.syntax(), action.root.syntax())?;
+        Some(AnalyzerAction {
+            rule_name: R::NAME,
+            file_id: self.file_id,
+            category: action.category,
+            applicability: action.applicability,
+            message: action.message,
+            original_range,
+            new_range,
+            root: action.root,
         })
     }
 }

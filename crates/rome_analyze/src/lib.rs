@@ -13,7 +13,7 @@ mod assists;
 mod categories;
 pub mod context;
 mod registry;
-mod signals;
+pub mod signals;
 
 pub use crate::categories::{ActionCategory, RuleCategories, RuleCategory};
 pub use crate::context::RuleContextServiceBag;
@@ -70,7 +70,7 @@ pub type ControlFlow<B = Never> = ops::ControlFlow<B>;
 pub fn analyze<B>(
     file_id: FileId,
     root: &LanguageRoot<JsLanguage>,
-    ctx: RuleContextServiceBag<JsLanguage>,
+    services: RuleContextServiceBag<JsLanguage>,
     filter: AnalysisFilter,
     mut callback: impl FnMut(&dyn AnalyzerSignal<JsLanguage>) -> ControlFlow<B>,
 ) -> Option<B> {
@@ -94,7 +94,9 @@ pub fn analyze<B>(
             continue;
         }
 
-        if let ControlFlow::Break(b) = registry.analyze(file_id, root, ctx, &mut callback) {
+        if let ControlFlow::Break(b) =
+            registry.analyze(file_id, root, node, services.clone(), &mut callback)
+        {
             return Some(b);
         }
     }

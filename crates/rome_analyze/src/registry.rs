@@ -6,19 +6,20 @@ use rome_diagnostics::{Diagnostic, DiagnosticTag, Footer, Span, SubDiagnostic};
 use rome_js_syntax::{JsLanguage, TextRange};
 use rome_rowan::{AstNode, Language, SyntaxNode};
 
+use crate::context::LanguageSpecificServiceBag;
 use crate::signals::{AnalyzerSignal, RuleSignal};
 use crate::{
     analyzers::*,
     assists::*,
     categories::{ActionCategory, RuleCategory},
-    context::{RuleContext, RuleContextServiceBag, WithServiceBag},
+    context::{RuleContext, RuleContextServiceBag},
     AnalysisFilter, ControlFlow, LanguageOfRule,
 };
 
 /// The rule registry holds type-erased instances of all active analysis rules
 pub(crate) struct RuleRegistry<L>
 where
-    L: Language + WithServiceBag,
+    L: Language + LanguageSpecificServiceBag,
 {
     rules: Vec<RegistryRule<L>>,
 }
@@ -62,18 +63,19 @@ pub(crate) type LanguageRoot<L> = <L as Language>::Root;
 
 impl<L> RuleRegistry<L>
 where
-    L: Language + WithServiceBag,
+    L: Language + LanguageSpecificServiceBag,
 {
     // Run all rules known to the registry associated with nodes of type N
     pub(crate) fn analyze<B>(
         &self,
         file_id: FileId,
-        root: &LanguageRoot<JsLanguage>,
-        ctx: RuleContextServiceBag<JsLanguage>,
+        root: &LanguageRoot<L>,
+        node: SyntaxNode<L>,
+        services: RuleContextServiceBag<L>,
         callback: &mut impl FnMut(&dyn AnalyzerSignal<L>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         for rule in &self.rules {
-            if let Some(event) = (rule)(file_id, root, &node) {
+            if let Some(event) = (rule)(file_id, root, services.clone(), &node) {
                 if let ControlFlow::Break(b) = callback(&*event) {
                     return ControlFlow::Break(b);
                 }
@@ -101,17 +103,20 @@ fn run<'a, R: Rule>(
 ) -> Option<Box<dyn AnalyzerSignal<RuleLanguage<R>> + 'a>>
 where
     R: Rule + 'static,
-    LanguageOfRule<R>: LanguageSpecificServiceBag,
+    LanguageOfRule<R>: crate::context::LanguageSpecificServiceBag,
 {
     if !<R::Query>::can_cast(node.kind()) {
         return None;
     }
 
     let node = <R::Query>::cast(node.clone())?;
-    let ctx = RuleContext::new(node.clone(), services);
+    let ctx = RuleContext::new(node.clone(), services.clone());
 
     let result = R::run(&ctx)?;
-    Some(RuleSignal::<R>::new_boxed(file_id, root, node, result))
+
+    Some(RuleSignal::<R>::new_boxed(
+        file_id, root, node, services, result,
+    ))
 }
 
 /// Trait implemented by all analysis rules: declares interest to a certain AstNode type,
@@ -120,7 +125,7 @@ where
 pub(crate) trait Rule
 where
     Self: Sized,
-    LanguageOfRule<Self>: LanguageSpecificServiceBag,
+    LanguageOfRule<Self>: crate::context::LanguageSpecificServiceBag,
 {
     /// The name of this rule, displayed in the diagnostics it emits
     const NAME: &'static str;
@@ -140,15 +145,16 @@ where
     /// being analyzed. If it returns `Some` the state object will be wrapped
     /// in a generic `AnalyzerSignal`, and the consumer of the analyzer may call
     /// `diagnostic` or `action` on it
-    fn run(node: &crate::context::RuleContext<Self>) -> Option<Self::State>;
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State>;
 
     /// Called by the consumer of the analyzer to try to generate a diagnostic
     /// from a signal raised by `run`
     ///
     /// The default implementation returns None
+    #[allow(unused)]
     fn diagnostic(
-        _node: &crate::context::RuleContext<Self>,
-        _state: &Self::State,
+        ctx: &crate::context::RuleContext<Self>,
+        state: &Self::State,
     ) -> Option<RuleDiagnostic> {
         None
     }
@@ -157,10 +163,10 @@ where
     /// from a signal raised by `run`
     ///
     /// The default implementation returns None
+    #[allow(unused)]
     fn action(
-        _root: RuleRoot<Self>,
-        _node: &crate::context::RuleContext<Self>,
-        _state: &Self::State,
+        ctx: &crate::context::RuleContext<Self>,
+        state: &Self::State,
     ) -> Option<RuleAction<RuleLanguage<Self>>> {
         None
     }

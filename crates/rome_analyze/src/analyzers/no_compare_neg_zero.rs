@@ -1,14 +1,15 @@
+use crate::context::JsRuleContext;
+use crate::registry::{Rule, RuleAction, RuleDiagnostic};
+use crate::{ActionCategory, LanguageOfRule, RuleCategory};
 use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{
     JsAnyExpression, JsAnyLiteralExpression, JsBinaryExpression, JsSyntaxKind, JsUnaryOperator,
 };
-use rome_rowan::{AstNode, AstNodeExt, SyntaxToken};
-
-use crate::registry::{Rule, RuleAction, RuleDiagnostic};
-use crate::{ActionCategory, LanguageOfRule, RuleCategory};
-
+use rome_rowan::AstNode;
+use rome_rowan::AstNodeExt;
+use rome_rowan::SyntaxToken;
 pub struct NoCompareNegZeroState {
     operator_kind: &'static str,
     left_need_replaced: bool,
@@ -23,7 +24,9 @@ impl Rule for NoCompareNegZero {
     type Query = JsBinaryExpression;
     type State = NoCompareNegZeroState;
 
-    fn run(node: &Self::Query) -> Option<Self::State> {
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State> {
+        let node = ctx.query();
+
         if !node.is_comparison_operator() {
             return None;
         }
@@ -48,22 +51,24 @@ impl Rule for NoCompareNegZero {
         }
     }
 
-    fn diagnostic(node: &Self::Query, state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        ctx: &crate::context::RuleContext<Self>,
+        state: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         Some(RuleDiagnostic::warning(
-            node.range(),
+            ctx.query().range(),
             markup! {
                 "Do not use the "{state.operator_kind}" operator to compare against -0."
             },
         ))
     }
     fn action(
-        root: rome_js_syntax::JsAnyRoot,
-        node: &Self::Query,
+        ctx: &crate::context::RuleContext<Self>,
         state: &Self::State,
     ) -> Option<RuleAction<LanguageOfRule<Self>>> {
         let root = if state.left_need_replaced && state.right_need_replaced {
-            let binary = node.clone().replace_node(
-                node.left().ok()?,
+            let binary = ctx.query().clone().replace_node(
+                ctx.query().left().ok()?,
                 JsAnyExpression::JsAnyLiteralExpression(
                     JsAnyLiteralExpression::JsNumberLiteralExpression(
                         make::js_number_literal_expression(SyntaxToken::new_detached(
@@ -90,10 +95,12 @@ impl Rule for NoCompareNegZero {
                     ),
                 ),
             )?;
-            root.replace_node(node.clone(), binary)?
+            ctx.root()
+                .clone()
+                .replace_node(ctx.query().clone(), binary)?
         } else if state.left_need_replaced {
-            root.replace_node(
-                node.left().ok()?,
+            ctx.root().clone().replace_node(
+                ctx.query().left().ok()?,
                 JsAnyExpression::JsAnyLiteralExpression(
                     JsAnyLiteralExpression::JsNumberLiteralExpression(
                         make::js_number_literal_expression(SyntaxToken::new_detached(
@@ -106,8 +113,8 @@ impl Rule for NoCompareNegZero {
                 ),
             )?
         } else if state.right_need_replaced {
-            root.replace_node(
-                node.right().ok()?,
+            ctx.root().clone().replace_node(
+                ctx.query().right().ok()?,
                 JsAnyExpression::JsAnyLiteralExpression(
                     JsAnyLiteralExpression::JsNumberLiteralExpression(
                         make::js_number_literal_expression(SyntaxToken::new_detached(
@@ -120,7 +127,7 @@ impl Rule for NoCompareNegZero {
                 ),
             )?
         } else {
-            root
+            ctx.root().clone()
         };
 
         Some(RuleAction {

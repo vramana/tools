@@ -53,7 +53,7 @@
 
 use std::panic::RefUnwindSafe;
 
-use rome_analyze::AnalyzerAction;
+use rome_analyze::signals::AnalyzerAction;
 use rome_diagnostics::Diagnostic;
 use rome_formatter::{IndentStyle, Printed};
 use rome_fs::RomePath;

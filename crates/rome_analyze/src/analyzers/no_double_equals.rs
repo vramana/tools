@@ -1,13 +1,12 @@
+use crate::context::JsRuleContext;
+use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
+use crate::{ActionCategory, RuleCategory};
 use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{JsAnyExpression, JsAnyLiteralExpression, JsBinaryExpression, T};
 use rome_js_syntax::{JsSyntaxKind::*, JsSyntaxToken};
 use rome_rowan::{AstNodeExt, SyntaxResult};
-
-use crate::context::RuleContext;
-use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
-use crate::{ActionCategory, RuleCategory};
 
 pub(crate) enum NoDoubleEquals {}
 
@@ -34,7 +33,10 @@ impl Rule for NoDoubleEquals {
         Some(op)
     }
 
-    fn diagnostic(ctx: &crate::context::RuleContext<Self>, op: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        _: &crate::context::RuleContext<Self>,
+        op: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         let text_trimmed = op.text_trimmed();
         let suggestion = if op.kind() == EQ2 { "===" } else { "!==" };
 
@@ -56,6 +58,7 @@ impl Rule for NoDoubleEquals {
         let suggestion = if op.kind() == EQ2 { T![===] } else { T![!==] };
         let root = ctx
             .root()
+            .clone()
             .replace_token(op.clone(), make::token(suggestion))?;
 
         Some(JsRuleAction {

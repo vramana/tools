@@ -1,16 +1,15 @@
+use crate::context::JsRuleContext;
+use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
+use crate::{ActionCategory, RuleCategory};
 use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{
-    JsAnyAssignment, JsAnyAssignmentPattern, JsAnyExpression,
-    JsComputedMemberExpression, JsComputedMemberExpressionFields, JsStaticMemberExpression,
-    JsStaticMemberExpressionFields, JsUnaryExpression, JsUnaryOperator, T,
+    JsAnyAssignment, JsAnyAssignmentPattern, JsAnyExpression, JsComputedMemberExpression,
+    JsComputedMemberExpressionFields, JsStaticMemberExpression, JsStaticMemberExpressionFields,
+    JsUnaryExpression, JsUnaryOperator, T,
 };
 use rome_rowan::{AstNode, AstNodeExt};
-
-use crate::context::RuleContext;
-use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
-use crate::{ActionCategory, RuleCategory};
 
 pub(crate) enum NoDelete {}
 
@@ -31,7 +30,10 @@ impl Rule for NoDelete {
         MemberExpression::try_from(argument).ok()
     }
 
-    fn diagnostic(ctx: &crate::context::RuleContext<Self>, _state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        ctx: &crate::context::RuleContext<Self>,
+        _state: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         let node = ctx.query();
 
         Some(
@@ -42,8 +44,11 @@ impl Rule for NoDelete {
         )
     }
 
-    fn action(ctx: &crate::context::RuleContext<Self>, state: &Self::State) -> Option<JsRuleAction> {
-        let root = ctx.root().replace_node(
+    fn action(
+        ctx: &crate::context::RuleContext<Self>,
+        state: &Self::State,
+    ) -> Option<JsRuleAction> {
+        let root = ctx.root().clone().replace_node(
             JsAnyExpression::from(ctx.query().clone()),
             JsAnyExpression::from(make::js_assignment_expression(
                 state.clone().try_into().ok()?,

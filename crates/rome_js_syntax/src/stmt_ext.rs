@@ -40,9 +40,12 @@ impl JsVariableDeclaration {
 
 #[cfg(test)]
 mod tests {
+    use crate::JsSyntaxKind;
     use rome_js_factory::syntax::{JsSyntaxKind::*, JsVariableDeclaration};
     use rome_js_factory::JsSyntaxTreeBuilder;
     use rome_rowan::AstNode;
+
+    use crate::JsVariableDeclaration;
 
     #[test]
     fn is_var_check() {

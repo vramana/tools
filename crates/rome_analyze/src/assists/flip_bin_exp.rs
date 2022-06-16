@@ -2,12 +2,12 @@ use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{
-    JsAnyRoot, JsBinaryExpression, JsBinaryExpressionFields, JsBinaryOperator, JsSyntaxKind, T,
+    JsBinaryExpression, JsBinaryExpressionFields, JsBinaryOperator, JsSyntaxKind, T,
 };
 use rome_rowan::AstNodeExt;
 
 use crate::{
-    context::RuleContext,
+    context::JsRuleContext,
     registry::{JsRuleAction, Rule, RuleAction},
     ActionCategory, LanguageOfRule, RuleCategory,
 };
@@ -38,11 +38,11 @@ impl Rule for FlipBinExp {
     }
 
     fn action(
-        root: JsAnyRoot,
         ctx: &crate::context::RuleContext<Self>,
         op: &Self::State,
     ) -> Option<RuleAction<LanguageOfRule<Self>>> {
         let node = ctx.query();
+        let root = ctx.root().clone();
 
         let prev_left = node.left().ok()?;
         let new_left = node.right().ok()?;

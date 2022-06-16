@@ -1,14 +1,13 @@
+use crate::context::JsRuleContext;
+use crate::{
+    registry::{JsRuleAction, Rule, RuleDiagnostic},
+    ActionCategory, RuleCategory,
+};
 use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{JsAnyStatement, JsForStatement, JsForStatementFields, T};
 use rome_rowan::AstNodeExt;
-
-use crate::{
-    context::RuleContext,
-    registry::{JsRuleAction, Rule, RuleDiagnostic},
-    ActionCategory, RuleCategory,
-};
 
 pub(crate) enum UseWhile {}
 
@@ -45,7 +44,10 @@ impl Rule for UseWhile {
         }
     }
 
-    fn diagnostic(ctx: &crate::context::RuleContext<Self>, _: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        ctx: &crate::context::RuleContext<Self>,
+        _: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         let node = ctx.query();
 
         // SAFETY: These tokens have been checked for errors in `run` already
@@ -73,7 +75,7 @@ impl Rule for UseWhile {
             body,
         } = ctx.query().as_fields();
 
-        let root = ctx.root().replace_node(
+        let root = ctx.root().clone().replace_node(
             JsAnyStatement::from(ctx.query().clone()),
             JsAnyStatement::from(make::js_while_statement(
                 make::token_decorated_with_space(T![while]),

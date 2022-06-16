@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use rome_analyze::{AnalyzerAction, RuleCategories};
+use rome_analyze::{signals::AnalyzerAction, RuleCategories};
 use rome_diagnostics::Diagnostic;
 use rome_formatter::{IndentStyle, Printed};
 use rome_fs::RomePath;

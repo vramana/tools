@@ -215,8 +215,8 @@ pub fn run(
     let services = RuleContextServiceBag::new(root.clone());
     rome_analyze::analyze(
         main_file_id,
-        services,
         &root,
+        services,
         AnalysisFilter::default(),
         |signal| {
             if let Some(mut diag) = signal.diagnostic() {

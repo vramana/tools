@@ -1,7 +1,7 @@
 use std::{any::type_name, panic::RefUnwindSafe, sync::RwLock};
 
 use dashmap::{mapref::entry::Entry, DashMap};
-use rome_analyze::AnalyzerAction;
+use rome_analyze::signals::AnalyzerAction;
 use rome_diagnostics::{Diagnostic, Severity};
 use rome_formatter::Printed;
 use rome_fs::RomePath;

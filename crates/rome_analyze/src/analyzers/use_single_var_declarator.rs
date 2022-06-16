@@ -1,5 +1,8 @@
 use std::iter;
 
+use crate::context::JsRuleContext;
+use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
+use crate::{ActionCategory, RuleCategory};
 use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
@@ -8,11 +11,6 @@ use rome_js_syntax::{
     JsVariableDeclaratorList, JsVariableStatement, JsVariableStatementFields,
 };
 use rome_rowan::{AstNode, AstSeparatedList};
-
-use crate::context::RuleContext;
-use crate::{ActionCategory, RuleCategory};
-
-use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
 
 pub(crate) enum UseSingleVarDeclarator {}
 
@@ -44,7 +42,10 @@ impl Rule for UseSingleVarDeclarator {
         Some((kind, declarators, semicolon_token))
     }
 
-    fn diagnostic(ctx: &crate::context::RuleContext<Self>, _state: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        ctx: &crate::context::RuleContext<Self>,
+        _state: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         let node = ctx.query();
         Some(RuleDiagnostic::warning(
             node.range(),
@@ -52,7 +53,10 @@ impl Rule for UseSingleVarDeclarator {
         ))
     }
 
-    fn action(ctx: &crate::context::RuleContext<Self>, state: &Self::State) -> Option<JsRuleAction> {
+    fn action(
+        ctx: &crate::context::RuleContext<Self>,
+        state: &Self::State,
+    ) -> Option<JsRuleAction> {
         let (kind, declarators, semicolon_token) = state;
         let node = ctx.query();
 
@@ -101,6 +105,7 @@ impl Rule for UseSingleVarDeclarator {
             message: markup! { "Break out into multiple declarations" }.to_owned(),
             root: JsAnyRoot::unwrap_cast(
                 ctx.root()
+                    .clone()
                     .into_syntax()
                     .replace_child(prev_parent.into(), next_parent.into())?,
             ),

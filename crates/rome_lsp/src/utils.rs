@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
 use crate::line_index::{LineCol, LineIndex};
-use rome_analyze::{ActionCategory, AnalyzerAction};
+use rome_analyze::signals::AnalyzerAction;
+use rome_analyze::ActionCategory;
 use rome_console::fmt::Termcolor;
 use rome_console::fmt::{self, Formatter};
 use rome_console::MarkupBuf;

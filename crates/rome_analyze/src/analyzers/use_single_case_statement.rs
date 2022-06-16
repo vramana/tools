@@ -4,10 +4,11 @@ use rome_console::markup;
 use rome_diagnostics::Applicability;
 use rome_js_factory::make;
 use rome_js_syntax::{
-    JsAnyRoot, JsAnyStatement, JsCaseClause, JsCaseClauseFields, JsSyntaxToken, TriviaPieceKind, T,
+    JsAnyStatement, JsCaseClause, JsCaseClauseFields, JsSyntaxToken, TriviaPieceKind, T,
 };
 use rome_rowan::{AstNode, AstNodeExt, AstNodeList, TriviaPiece};
 
+use crate::context::JsRuleContext;
 use crate::registry::{JsRuleAction, Rule, RuleDiagnostic};
 use crate::{ActionCategory, RuleCategory};
 
@@ -22,30 +23,33 @@ impl Rule for UseSingleCaseStatement {
     type Query = JsCaseClause;
     type State = ();
 
-    fn run(n: &Self::Query) -> Option<Self::State> {
-        if n.consequent().len() > 1 {
+    fn run(ctx: &crate::context::RuleContext<Self>) -> Option<Self::State> {
+        if ctx.query().consequent().len() > 1 {
             Some(())
         } else {
             None
         }
     }
 
-    fn diagnostic(n: &Self::Query, _: &Self::State) -> Option<RuleDiagnostic> {
+    fn diagnostic(
+        ctx: &crate::context::RuleContext<Self>,
+        _: &Self::State,
+    ) -> Option<RuleDiagnostic> {
         Some(RuleDiagnostic::warning(
-            n.consequent().range(),
+            ctx.query().consequent().range(),
             markup! {
                 "A switch case should only have a single statement. If you want more, then wrap it in a block."
             },
         ))
     }
 
-    fn action(root: JsAnyRoot, n: &Self::Query, _: &Self::State) -> Option<JsRuleAction> {
+    fn action(ctx: &crate::context::RuleContext<Self>, _: &Self::State) -> Option<JsRuleAction> {
         let JsCaseClauseFields {
             case_token,
             colon_token,
             consequent,
             ..
-        } = n.as_fields();
+        } = ctx.query().as_fields();
 
         // Move the trailing trivia of the colon token to the opening bracket token,
         // this ensure comments stay in the right place
@@ -81,7 +85,8 @@ impl Rule for UseSingleCaseStatement {
 
         closing_token.push('}');
 
-        let node = n
+        let node = ctx
+            .query()
             .clone()
             .with_consequent(make::js_statement_list(iter::once(
                 JsAnyStatement::JsBlockStatement(make::js_block_statement(
@@ -96,14 +101,16 @@ impl Rule for UseSingleCaseStatement {
                 )),
             )));
 
-        let node = if let Ok(colon_token) = n.colon_token() {
+        let node = if let Ok(colon_token) = ctx.query().colon_token() {
             node.with_colon_token(colon_token.with_trailing_trivia(iter::empty()))
         } else {
             node
         };
 
-        let root = root
-            .replace_node(n.clone(), node)
+        let root = ctx
+            .root()
+            .clone()
+            .replace_node(ctx.query().clone(), node)
             .expect("failed to replace node");
 
         Some(JsRuleAction {

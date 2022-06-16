@@ -1,9 +1,14 @@
-use rome_analyze::{analyze, AnalysisFilter, AnalyzerAction, ControlFlow, Never, RuleCategories};
-use rome_diagnostics::{Applicability, Diagnostic};
-use rome_analyze::{
-    analyze, AnalysisFilter, AnalyzerAction, RuleCategories, RuleContextServiceBag,
+use crate::workspace::FixFileResult;
+use crate::{
+    settings::{FormatSettings, Language, LanguageSettings, LanguagesSettings, SettingsHandle},
+    workspace::server::AnyParse,
+    RomeError,
 };
-use rome_diagnostics::Diagnostic;
+use rome_analyze::signals::AnalyzerAction;
+use rome_analyze::{
+    analyze, AnalysisFilter, ControlFlow, Never, RuleCategories, RuleContextServiceBag,
+};
+use rome_diagnostics::{Applicability, Diagnostic};
 use rome_formatter::{IndentStyle, LineWidth, Printed};
 use rome_fs::RomePath;
 use rome_js_formatter::context::{JsFormatOptions, QuoteStyle};
@@ -11,13 +16,6 @@ use rome_js_formatter::{context::JsFormatContext, format_node};
 use rome_js_parser::Parse;
 use rome_js_syntax::{JsAnyRoot, JsLanguage, SourceType, TextRange, TextSize, TokenAtOffset};
 use rome_rowan::AstNode;
-
-use crate::workspace::FixFileResult;
-use crate::{
-    settings::{FormatSettings, Language, LanguageSettings, LanguagesSettings, SettingsHandle},
-    workspace::server::AnyParse,
-    RomeError,
-};
 
 use super::{ExtensionHandler, Mime};
 use std::fmt::Debug;
@@ -122,13 +120,8 @@ fn debug_print(_rome_path: &RomePath, parse: AnyParse) -> String {
     format!("{tree:#?}")
 }
 
-<<<<<<< HEAD
 fn lint(rome_path: &RomePath, parse: AnyParse, categories: RuleCategories) -> Vec<Diagnostic> {
-    let tree = parse.tree();
-=======
-fn lint(rome_path: &RomePath, parse: AnyParse) -> Vec<Diagnostic> {
-    let root = parse.tree::<JsAnyRoot>();
->>>>>>> 01f63525d4 (typed service bag for each language)
+    let root: JsAnyRoot = parse.tree();
     let mut diagnostics = parse.into_diagnostics();
 
     let filter = AnalysisFilter {
@@ -138,7 +131,7 @@ fn lint(rome_path: &RomePath, parse: AnyParse) -> Vec<Diagnostic> {
 
     let file_id = rome_path.file_id();
     let services = RuleContextServiceBag::new(root.clone());
-    analyze(file_id, services, &root, filter, |signal| {
+    analyze(file_id, &root, services, filter, |signal| {
         if let Some(mut diag) = signal.diagnostic() {
             if let Some(action) = signal.action() {
                 diag.suggestions.push(action.into());
@@ -153,17 +146,12 @@ fn lint(rome_path: &RomePath, parse: AnyParse) -> Vec<Diagnostic> {
     diagnostics
 }
 
-<<<<<<< HEAD
 fn code_actions(
     rome_path: &RomePath,
     parse: AnyParse,
     range: TextRange,
 ) -> Vec<AnalyzerAction<JsLanguage>> {
-    let tree = parse.tree();
-=======
-fn code_actions(rome_path: &RomePath, parse: AnyParse, range: TextRange) -> Vec<AnalyzerAction> {
-    let root = parse.tree::<JsAnyRoot>();
->>>>>>> 01f63525d4 (typed service bag for each language)
+    let root: JsAnyRoot = parse.tree();
 
     let mut actions = Vec::new();
 
@@ -174,7 +162,8 @@ fn code_actions(rome_path: &RomePath, parse: AnyParse, range: TextRange) -> Vec<
 
     let file_id = rome_path.file_id();
     let services = RuleContextServiceBag::new(root.clone());
-    analyze(file_id, services, &root, filter, |signal| {
+
+    analyze(file_id, &root, services, filter, |signal| {
         if let Some(action) = signal.action() {
             actions.push(action);
         }
@@ -186,7 +175,7 @@ fn code_actions(rome_path: &RomePath, parse: AnyParse, range: TextRange) -> Vec<
 }
 
 fn fix_all(rome_path: &RomePath, parse: AnyParse) -> FixFileResult {
-    let mut tree: JsAnyRoot = parse.tree();
+    let mut root: JsAnyRoot = parse.tree();
     let mut rules = Vec::new();
 
     let filter = AnalysisFilter {
@@ -197,7 +186,8 @@ fn fix_all(rome_path: &RomePath, parse: AnyParse) -> FixFileResult {
     let file_id = rome_path.file_id();
 
     loop {
-        let action = analyze(file_id, &tree, filter, |signal| {
+        let services = RuleContextServiceBag::new(root.clone());
+        let action = analyze(file_id, &root, services, filter, |signal| {
             if let Some(action) = signal.action() {
                 if action.applicability == Applicability::Always {
                     return ControlFlow::Break(action);
@@ -209,12 +199,12 @@ fn fix_all(rome_path: &RomePath, parse: AnyParse) -> FixFileResult {
 
         match action {
             Some(action) => {
-                tree = action.root;
+                root = action.root;
                 rules.push((action.rule_name, action.original_range));
             }
             None => {
                 return FixFileResult {
-                    code: tree.syntax().to_string(),
+                    code: root.syntax().to_string(),
                     rules,
                 }
             }
