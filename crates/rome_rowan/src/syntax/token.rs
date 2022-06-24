@@ -87,7 +87,7 @@ impl<L: Language> SyntaxToken<L> {
     }
 
     /// Returns the text of a token, including all trivia as an owned value.
-    ///  
+    ///
     /// ```
     /// use rome_rowan::raw_language::{RawLanguage, RawLanguageKind, RawSyntaxTreeBuilder};
     /// use rome_rowan::*;
@@ -290,7 +290,6 @@ impl<L: Language> SyntaxToken<L> {
     pub fn has_trailing_comments(&self) -> bool {
         self.trailing_trivia()
             .pieces()
-            .into_iter()
             .any(|piece| piece.is_comments())
     }
 
@@ -298,8 +297,14 @@ impl<L: Language> SyntaxToken<L> {
     pub fn has_leading_comments(&self) -> bool {
         self.leading_trivia()
             .pieces()
-            .into_iter()
             .any(|piece| piece.is_comments())
+    }
+
+    /// Checks if the token has any leading trivia that isn't a whitespace nor a line break
+    pub fn has_leading_non_whitespace_trivia(&self) -> bool {
+        self.leading_trivia()
+            .pieces()
+            .any(|piece| piece.is_whitespace() || piece.is_newline())
     }
 }
 

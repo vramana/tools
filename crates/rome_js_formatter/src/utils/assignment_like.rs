@@ -408,14 +408,18 @@ impl JsAnyAssignmentLike {
 
     /// Returns the layout variant for an assignment like depending on right expression and left part length
     /// [Prettier applies]: https://github.com/prettier/prettier/blob/main/src/language-js/print/assignment.js
-    fn layout(&self, is_left_short: bool) -> FormatResult<AssignmentLikeLayout> {
+    fn layout(
+        &self,
+        is_left_short: bool,
+        f: &mut JsFormatter,
+    ) -> FormatResult<AssignmentLikeLayout> {
         if self.has_only_left_hand_side() {
             return Ok(AssignmentLikeLayout::OnlyLeft);
         }
 
         let right = self.right()?.as_expression();
 
-        if let Some(layout) = self.chain_formatting_layout()? {
+        if let Some(layout) = self.chain_formatting_layout(f)? {
             return Ok(layout);
         }
 
@@ -460,13 +464,23 @@ impl JsAnyAssignmentLike {
 
     /// Checks if the right node is entitled of the chain formatting,
     /// and if so, it return the layout type
-    fn chain_formatting_layout(&self) -> SyntaxResult<Option<AssignmentLikeLayout>> {
+    fn chain_formatting_layout(
+        &self,
+        f: &mut JsFormatter,
+    ) -> SyntaxResult<Option<AssignmentLikeLayout>> {
         let right = self.right()?;
 
         let right_is_tail = !matches!(
             right,
             RightAssignmentLike::JsAnyExpression(JsAnyExpression::JsAssignmentExpression(_))
         );
+
+        if let RightAssignmentLike::JsInitializerClause(initializer) = &right {
+            if f.context_mut().is_suppressed(initializer.syntax()) {
+                return Ok(Some(AssignmentLikeLayout::Fluid));
+            }
+        }
+
         // The chain goes up two levels, by checking up to the great parent if all the conditions
         // are correctly met.
         let upper_chain_is_eligible =
@@ -642,21 +656,13 @@ impl Format<JsFormatContext> for JsAnyAssignmentLike {
             // 3. we compute the layout
             // 4. we write the left node inside the main buffer based on the layout
             let mut buffer = VecBuffer::new(f.state_mut());
-            let mut is_left_short = false;
-            write!(
-                buffer,
-                [&format_once(|f| {
-                    is_left_short = self.write_left(f)?;
-                    Ok(())
-                })]
-            )?;
+            let is_left_short = self.write_left(&mut Formatter::new(&mut buffer))?;
+            let formatted_element = buffer.into_element();
 
             // Compare name only if we are in a position of computing it.
             // If not (for example, left is not an identifier), then let's fallback to false,
             // so we can continue the chain of checks
-            let layout = self.layout(is_left_short)?;
-
-            let formatted_element = buffer.into_element();
+            let layout = self.layout(is_left_short, f)?;
 
             if matches!(
                 layout,

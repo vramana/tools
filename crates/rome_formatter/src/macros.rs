@@ -207,7 +207,7 @@ macro_rules! format {
 /// // Takes the first variant if everything fits on a single line
 /// assert_eq!(
 ///     "aVeryLongIdentifier([1, 2, 3])",
-///     Formatted::new(elements.clone(), PrinterOptions::default())
+///     Formatted::new(elements.clone(), SimpleFormatContext::default())
 ///         .print()
 ///         .as_code()
 /// );
@@ -216,7 +216,7 @@ macro_rules! format {
 /// // has some additional line breaks to make sure inner groups don't break
 /// assert_eq!(
 ///     "aVeryLongIdentifier([\n\t1, 2, 3\n])",
-///     Formatted::new(elements.clone(), PrinterOptions::default().with_print_width(21.try_into().unwrap()))
+///     Formatted::new(elements.clone(), SimpleFormatContext { line_width: 21.try_into().unwrap(), ..SimpleFormatContext::default() })
 ///         .print()
 ///         .as_code()
 /// );
@@ -224,7 +224,7 @@ macro_rules! format {
 /// // Prints the last option as last resort
 /// assert_eq!(
 ///     "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
-///     Formatted::new(elements.clone(), PrinterOptions::default().with_print_width(20.try_into().unwrap()))
+///     Formatted::new(elements.clone(), SimpleFormatContext { line_width: 20.try_into().unwrap(), ..SimpleFormatContext::default() })
 ///         .print()
 ///         .as_code()
 /// );
@@ -403,7 +403,10 @@ mod tests {
 
         let best_fitting_code = Formatted::new(
             formatted_best_fitting.into_format_element(),
-            PrinterOptions::default().with_print_width(30.try_into().unwrap()),
+            SimpleFormatContext {
+                line_width: 30.try_into().unwrap(),
+                ..SimpleFormatContext::default()
+            },
         )
         .print()
         .as_code()
@@ -411,7 +414,10 @@ mod tests {
 
         let normal_list_code = Formatted::new(
             formatted_normal_list.into_format_element(),
-            PrinterOptions::default().with_print_width(30.try_into().unwrap()),
+            SimpleFormatContext {
+                line_width: 30.try_into().unwrap(),
+                ..SimpleFormatContext::default()
+            },
         )
         .print()
         .as_code()

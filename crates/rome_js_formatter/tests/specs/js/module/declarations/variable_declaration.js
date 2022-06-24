@@ -45,3 +45,8 @@ const bifornCringerMoshedPerplexSawderGlyphsHb = someBigFunctionName(
     `foo
 `,
 )("bar");
+
+
+const a
+	// rome-ignore format: Ignore the initializer
+	= [A,    B,   C].push( aaa )

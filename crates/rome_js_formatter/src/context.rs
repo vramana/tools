@@ -1,8 +1,11 @@
+#[cfg(debug_assertions)]
+use indexmap::IndexSet;
 use rome_formatter::printer::PrinterOptions;
 use rome_formatter::{
     CommentContext, CommentKind, CommentStyle, FormatContext, IndentStyle, LineWidth,
 };
-use rome_js_syntax::{JsLanguage, JsSyntaxKind, SourceType};
+use rome_js_syntax::suppression::{has_suppressions_category, SuppressionCategory};
+use rome_js_syntax::{JsLanguage, JsSyntaxKind, JsSyntaxNode, SourceType};
 use rome_rowan::SyntaxTriviaPieceComments;
 use std::fmt;
 use std::fmt::Debug;
@@ -21,6 +24,8 @@ pub struct JsFormatContext {
 
     /// Information relative to the current file
     source_type: SourceType,
+
+    checked_node_suppressions: IndexSet<JsSyntaxNode>,
 }
 
 impl JsFormatContext {
@@ -62,6 +67,35 @@ impl JsFormatContext {
     pub fn source_type(&self) -> SourceType {
         self.source_type
     }
+
+    pub(crate) fn is_suppressed(&mut self, node: &JsSyntaxNode) -> bool {
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                self.checked_node_suppressions.insert(node.clone());
+            }
+        }
+
+        has_suppressions_category(SuppressionCategory::Format, node)
+    }
+
+    #[inline]
+    pub(crate) fn assert_checked_all_suppressions(&self, #[allow(unused)] root: &JsSyntaxNode) {
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                for node in root.descendants() {
+                    if !self.checked_node_suppressions.contains(&node) {
+                        if node.prev_sibling_or_token().is_none() || node.kind().is_list() {
+                            // This is fine if the parent has been checked because it's sufficient to test
+                            // the statement of an expression because.
+                            continue;
+                        }
+
+                        panic!("The suppression comments for haven't been checked. Ensure you test if a node is suppressed using `f.context_mut().is_suppressed()` in case you by-pass the node's `node.format()` implementation.\n{node:#?} ")
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -89,6 +123,8 @@ impl JsFormatContext {
 }
 
 impl FormatContext for JsFormatContext {
+    type Snapshot = JsFormatContextSnapshot;
+
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
     }
@@ -102,6 +138,26 @@ impl FormatContext for JsFormatContext {
             .with_indent(self.indent_style)
             .with_print_width(self.line_width)
     }
+
+    fn snapshot(&self) -> Self::Snapshot {
+        JsFormatContextSnapshot {
+            #[cfg(debug_assertions)]
+            node_suppressions_len: self.checked_node_suppressions.len(),
+        }
+    }
+
+    fn restore_snapshot(&mut self, #[allow(unused)] snapshot: Self::Snapshot) {
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                self.checked_node_suppressions.truncate(snapshot.node_suppressions_len);
+            }
+        }
+    }
+}
+
+pub struct JsFormatContextSnapshot {
+    #[cfg(debug_assertions)]
+    node_suppressions_len: usize,
 }
 
 impl fmt::Display for JsFormatContext {
