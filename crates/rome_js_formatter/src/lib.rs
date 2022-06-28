@@ -457,11 +457,16 @@ mod test {
     // use this test check if your snippet prints as you wish, without using a snapshot
     fn quick_test() {
         let src = r#"
-deepCopyAndAsyncMapLeavesC(
-  { source: sourceedeefeffeefefefValue, destination: destination[sourceKey] },
-  1337,
-  { valueMapper, overwriteExistingKeys }
-)
+// deepCopyAndAsyncMapLeavesC(
+//   { source: sourceedeefeffeefefefValue, destination: destination[sourceKey] },
+//   1337,
+//   { valueMapper, overwriteExistingKeys }
+// )
+
+deepCopyAndAsyncMapLeavesC({
+	source: sourceedeefeffeefefefValue,
+	destination: destination[sourceKey],
+}, 1337, { valueMapper, overwriteExistingKeys });
 
 
         "#;
@@ -470,13 +475,13 @@ deepCopyAndAsyncMapLeavesC(
         let result = format_node(JsFormatContext::default(), &tree.syntax())
             .unwrap()
             .print();
-        check_reformat(CheckReformatParams {
-            root: &tree.syntax(),
-            text: result.as_code(),
-            source_type: syntax,
-            file_name: "quick_test",
-            format_context: JsFormatContext::default(),
-        });
+        // check_reformat(CheckReformatParams {
+        //     root: &tree.syntax(),
+        //     text: result.as_code(),
+        //     source_type: syntax,
+        //     file_name: "quick_test",
+        //     format_context: JsFormatContext::default(),
+        // });
         assert_eq!(
             result.as_code(),
             "type B8 = /*1*/ (C);\ntype B9 = (/*1*/ C);\ntype B10 = /*1*/ /*2*/ C;\n"
