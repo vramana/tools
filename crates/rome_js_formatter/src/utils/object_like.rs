@@ -3,7 +3,7 @@ use crate::utils::node_has_leading_newline;
 use crate::JsFormatContext;
 use rome_formatter::write;
 use rome_formatter::{Format, FormatResult};
-use rome_js_syntax::{JsObjectExpression, JsSyntaxToken, TsObjectType};
+use rome_js_syntax::{JsObjectExpression, JsSyntaxKind, JsSyntaxToken, TsObjectType};
 use rome_rowan::{declare_node_union, AstNode, AstNodeList, AstSeparatedList, SyntaxResult};
 
 declare_node_union! {
