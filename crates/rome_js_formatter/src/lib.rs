@@ -457,11 +457,16 @@ mod test {
     // use this test check if your snippet prints as you wish, without using a snapshot
     fn quick_test() {
         let src = r#"
-deepCopyAndAsyncMapLeavesC(
-  { source: sourceedeefeffeefefefValue, destination: destination[sourceKey] },
-  1337,
-  { valueMapper, overwriteExistingKeys }
-)
+// deepCopyAndAsyncMapLeavesC(
+//   { source: sourceedeefeffeefefefValue, destination: destination[sourceKey] },
+//   1337,
+//   { valueMapper, overwriteExistingKeys }
+// )
+
+deepCopyAndAsyncMapLeavesC({
+	source: sourceedeefeffeefefefValue,
+	destination: destination[sourceKey],
+}, 1337, { valueMapper, overwriteExistingKeys });
 
 // deepCopyAndAsyncMapLeavesC({
 // 	source: sourceedeefeffeefefefValue,

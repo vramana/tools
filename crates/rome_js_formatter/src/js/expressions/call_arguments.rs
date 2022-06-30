@@ -207,7 +207,7 @@ impl FormatNodeRule<JsCallArguments> for FormatJsCallArguments {
             }
             write!(
                 f,
-                [&best_fitting![
+                [best_fitting![
                     format_args![
                         l_leading_trivia,
                         l_paren,
