@@ -150,3 +150,17 @@ let a = <a>{ /* comment */ " " /* comment */ }</a>;
 let a = <a>{  " "
 	/* comment */ }</a>;
 let a = <a>{ /* comment */ " " }</a>;
+
+
+export default function Index() {
+
+	return (
+		<>
+			<Header />
+			<main>
+				<Hero />
+			</main>
+			<Footer />
+		</>
+	);
+}
