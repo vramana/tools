@@ -8,7 +8,7 @@ use rome_rowan::{Language, TextRange};
 use crate::categories::{ActionCategory, RuleCategory};
 use crate::context::RuleContext;
 use crate::registry::RuleLanguage;
-use crate::{LanguageRoot, Phase, Phases, Queryable};
+use crate::{AnalysisFilter, LanguageRoot, Phase, Phases, Queryable, RuleRegistry};
 
 pub trait RuleMeta {
     /// The name of this rule, displayed in the diagnostics it emits
@@ -83,6 +83,33 @@ macro_rules! declare_rule {
         impl $crate::RuleMeta for $id {
             const NAME: &'static str = $name;
             const DOCS: &'static str = concat!( $( $doc, "\n", )* );
+        }
+    };
+}
+
+/// A rule group is a collection of rules under a given name, serving as a
+/// "namespace" for lint rules and allowing the entire set of rules to be
+/// disabled at once
+pub trait RuleGroup<L: Language> {
+    /// The name of this group, displayed in the diagnostics emitted by its rules
+    const NAME: &'static str;
+    /// Register all the rules belonging to this group into `registry` if they match `filter`
+    fn push_rules(registry: &mut RuleRegistry<L>, filter: &AnalysisFilter);
+}
+
+#[macro_export]
+macro_rules! declare_group {
+    ( $vis:vis $id:ident { name: $name:literal, rules: [ $( $rule:ty, )* ] } ) => {
+        $vis enum $id {}
+
+        impl<L: ::rome_rowan::Language> $crate::RuleGroup<L> for $id
+        where $( <$rule as $crate::Rule>::Query: $crate::Queryable<Language = L>, )*
+        {
+            const NAME: &'static str = $name;
+
+            fn push_rules(registry: &mut $crate::RuleRegistry<L>, filter: &$crate::AnalysisFilter) {
+                $( if filter.match_rule::<Self, $rule>() { registry.push::<Self, $rule>(); } )*
+            }
         }
     };
 }
@@ -285,11 +312,11 @@ impl RuleDiagnostic {
     /// Convert this [`RuleDiagnostic`] into an instance of [`Diagnostic`] by
     /// injecting the name of the rule that emitted it and the ID of the file
     /// the rule was being run on
-    pub(crate) fn into_diagnostic(self, file_id: FileId, code: &'static str) -> Diagnostic {
+    pub(crate) fn into_diagnostic(self, file_id: FileId, code: String) -> Diagnostic {
         Diagnostic {
             file_id,
             severity: self.severity,
-            code: Some(code.into()),
+            code: Some(code),
             title: self.title,
             summary: self.summary,
             tag: self.tag,
